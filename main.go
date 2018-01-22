@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/Fengxq2014/sel/router"
+	"github.com/yex2018/selserver/router"
 
-	"github.com/Fengxq2014/sel/conf"
-	db "github.com/Fengxq2014/sel/database"
+	"github.com/yex2018/selserver/conf"
+	db "github.com/yex2018/selserver/database"
 )
 
 func main() {
