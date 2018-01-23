@@ -7,13 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin/binding"
-
-	"github.com/yex2018/selserver/conf"
-
 	"github.com/Fengxq2014/aliyun_sms"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/goroom/rand"
+	"github.com/yex2018/selserver/conf"
 	"github.com/yex2018/selserver/models"
 	"github.com/yex2018/selserver/tool"
 )
