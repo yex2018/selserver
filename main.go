@@ -1,14 +1,13 @@
 package main
 
 import (
-	"github.com/yex2018/selserver/router"
-
 	"github.com/yex2018/selserver/conf"
-	db "github.com/yex2018/selserver/database"
+	"github.com/yex2018/selserver/database"
+	"github.com/yex2018/selserver/router"
 )
 
 func main() {
-	defer db.SqlDB.Close()
+	defer database.SqlDB.Close()
 	router := router.InitRouter()
 	router.Run(conf.Config.Port)
 }

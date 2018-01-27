@@ -134,7 +134,7 @@ func UpdateUserAnswer(Evaluation_id, User_id, Child_id, Current_question_id, Max
 
 // GetEvaluation 查询用户测评表
 func (ue *User_evaluation) GetEvaluation() (uevaluation User_evaluation, err error) {
-	_, err = db.Engine.Where("evaluation_id=? and user_id=? and child_id=? and current_question_id!=-1 ORDER BY evaluation_time DESC", ue.Evaluation_id, ue.User_id, ue.Child_id).Get(&uevaluation)
+	_, err = db.Engine.Where("evaluation_id=? and user_id=? and child_id=? and current_question_id!=-1", ue.Evaluation_id, ue.User_id, ue.Child_id).Desc("evaluation_time").Get(&uevaluation)
 	return uevaluation, err
 }
 
