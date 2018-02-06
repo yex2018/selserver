@@ -18,242 +18,365 @@ import (
 	"github.com/yex2018/selserver/tool"
 )
 
-type evaluationContain struct {
-	Category    string              `json:"category"`
-	Evaluations []models.Evaluation `json:"data"`
-}
-
 // QryEvaluation 获取测评列表
 func QryEvaluation(c *gin.Context) {
-	list := []evaluationContain{}
-	caccess := c.Query("user_access")
-	if caccess == "" {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-	id, err := strconv.Atoi(caccess)
-	if err != nil {
-		c.Error(errors.New("参数不合法"))
-		return
-	}
-	p := models.Evaluation{User_access: id}
-	evaluation, err := p.GetEvaluation()
-	if err != nil {
-		c.Error(errors.New("查询有误"))
-		return
-	}
-	if len(evaluation) > 0 {
-		for _, value := range evaluation {
-			index := checkExistCategory(&list, value.Category)
-			if index > -1 {
-				list[index].Evaluations = append(list[index].Evaluations, value)
-			} else {
-				eva := evaluationContain{Category: value.Category}
-				eva.Evaluations = append(eva.Evaluations, value)
-				list = append(list, eva)
-			}
+	mapCategory := make(map[string][]interface{})
+
+	evaluations := models.GetEvaluations()
+	if len(evaluations) > 0 {
+		for _, value := range evaluations {
+			mapEvaluation := make(map[string]interface{})
+			mapEvaluation["evaluation_id"] = value.Evaluation_id
+			mapEvaluation["name"] = value.Name
+			mapEvaluation["abstract"] = value.Abstract
+			mapEvaluation["price"] = value.Price
+			mapEvaluation["person_count"] = value.Person_count
+			mapEvaluation["picture"] = value.Picture
+
+			mapCategory[value.Category] = append(mapCategory[value.Category], mapEvaluation)
 		}
 	}
-	c.JSON(http.StatusOK, models.Result{Data: &list})
+
+	var data []map[string]interface{}
+	for key, value := range mapCategory {
+		mapData := make(map[string]interface{})
+		mapData["category"] = key
+		mapData["data"] = value
+		data = append(data, mapData)
+	}
+	c.JSON(http.StatusOK, models.Result{Data: &data})
 }
 
-// QryQuestion 获取题目
-func QryQuestion(c *gin.Context) {
+// QrySingleEvaluation 获取单个测评
+func QrySingleEvaluation(c *gin.Context) {
 	type param struct {
-		Eid   int `form:"evaluation_id" binding:"required"` //测评ID
-		UID   int `form:"user_id" binding:"required"`       //用户ID
-		CiD   int `form:"child_id" binding:"required"`      //儿童ID
-		Index int `form:"index"`                            //题目号
+		EID int `form:"evaluation_id" binding:"required"` //测评ID
 	}
+	//测评ID
 	var queryStr param
 	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
 		c.Error(errors.New("参数为空"))
 		return
 	}
-	var err error
-	res := models.Result{}
-	user_evaluation := models.User_evaluation{Evaluation_id: queryStr.Eid, User_id: queryStr.UID, Child_id: queryStr.CiD}
-	ue, err := user_evaluation.GetEvaluation()
+
+	evaluation, err := models.QryEvaluationById(queryStr.EID)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	var question models.Question
-	if queryStr.Index > 0 {
-		question, err = models.GetQuestionByIndex(queryStr.Eid, queryStr.Index, queryStr.UID, ue.User_evaluation_id)
-	} else {
-		if ue.Current_question_id > 0 {
-			question, err = models.GetQuestionByIndex(queryStr.Eid, ue.Current_question_id+1, queryStr.UID, ue.User_evaluation_id)
-		} else {
-			if ue.User_evaluation_id <= 0 {
-				user_evaluation.Current_question_id = 0
-				id, err := user_evaluation.AddEvaluation()
-				if id < 1 && err != nil {
-					c.Error(err)
-					return
-				}
-			}
-			question, err = models.GetQuestionByIndex(queryStr.Eid, 1, queryStr.UID, ue.User_evaluation_id)
-		}
-	}
+	mapData := make(map[string]interface{})
+	mapData["evaluation_id"] = evaluation.Evaluation_id
+	mapData["name"] = evaluation.Name
+	mapData["category"] = evaluation.Category
+	mapData["evaluation_id"] = evaluation.Evaluation_id
+	mapData["abstract"] = evaluation.Abstract
+	mapData["details"] = evaluation.Details
+	mapData["price"] = evaluation.Price
+	mapData["page_number"] = evaluation.Page_number
+	mapData["picture"] = evaluation.Picture
+	mapData["person_count"] = evaluation.Person_count
+	mapData["sample_report"] = evaluation.Sample_report
+	mapData["key_name"] = evaluation.Key_name
+	mapData["maxIndex"] = evaluation.MaxIndex
 
-	if err != nil {
-		res.Res = 1
-		res.Msg = "获取题目失败" + err.Error()
-		res.Data = nil
-		c.JSON(http.StatusOK, res)
-		return
-	}
-	res.Res = 0
-	res.Msg = ""
-	res.Data = question
-	c.JSON(http.StatusOK, res)
+	c.JSON(http.StatusOK, models.Result{Data: &mapData})
+	return
 }
 
-// UpAnswer 上传答案
-func UpAnswer(c *gin.Context) {
+// AddUserEvaluation 增加用户测评
+func AddUserEvaluation(c *gin.Context) {
 	type param struct {
-		Eid      int    `form:"evaluation_id" binding:"required"`       //测评ID
-		UID      int    `form:"user_id" binding:"required"`             //用户ID
-		Cid      int    `form:"child_id" binding:"required"`            //儿童ID
-		Cqid     int    `form:"current_question_id" binding:"required"` //当前测评题目，-1为测评完成
-		Tr       string `form:"text_result"`                            //测评描述
-		Rr       string `form:"report_result"`                          //测评报告路径
-		Answer   string `form:"answer" binding:"required"`              //答案
-		MaxIndex int    `form:"maxIndex" binding:"required"`            //题目总数
-		Qid      int    `form:"question_id" binding:"required"`         //测评题目ID
+		Evaluation_id int `json:"evaluation_id" binding:"required"` //测评ID
+		User_id       int `json:"user_id" binding:"required"`       //用户ID
+		Child_id      int `json:"child_id" binding:"required"`      //儿童ID
 	}
-	//测评ID
+
+	var postStr param
+	if c.ShouldBindWith(&postStr, binding.JSON) != nil {
+		c.Error(errors.New("参数为空"))
+		return
+	}
+
+	id, err := models.AddUserEvaluation(postStr.Evaluation_id, postStr.User_id, postStr.Child_id, time.Now(), 0)
+	if err != nil {
+		c.JSON(http.StatusOK, models.Result{Res: 1, Msg: "增加用户测评失败" + err.Error(), Data: nil})
+		return
+	}
+
+	mapData := make(map[string]int64)
+	mapData["user_evaluation_id"] = id
+	c.JSON(http.StatusOK, models.Result{Data: mapData})
+}
+
+// QryUserQuestion 获取用户测评题目
+func QryUserQuestion(c *gin.Context) {
+	type param struct {
+		User_evaluation_id int `form:"user_evaluation_id" binding:"required"` //用户测评ID
+		Evaluation_id      int `form:"evaluation_id" binding:"required"`      //测评ID
+		Question_index     int `form:"question_index" binding:"required"`     //题目号
+	}
+
 	var queryStr param
 	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
 		c.Error(errors.New("参数为空"))
 		return
 	}
 
-	err := models.UpdateUserAnswer(queryStr.Eid, queryStr.UID, queryStr.Cid, queryStr.Cqid, queryStr.MaxIndex, queryStr.Qid, queryStr.Answer)
-	res := models.Result{}
+	evaluation, err := models.QryEvaluationById(queryStr.Evaluation_id)
 	if err != nil {
-		res.Res = 1
-		res.Msg = err.Error()
-		res.Data = nil
-		c.JSON(http.StatusOK, res)
+		c.Error(err)
 		return
 	}
-	res.Res = 0
-	res.Msg = ""
-	res.Data = ""
-	c.JSON(http.StatusOK, res)
-}
 
-func checkExistCategory(list *[]evaluationContain, category string) int {
-	for index, value := range *list {
-		if category == value.Category {
-			return index
-		}
+	if queryStr.Question_index <= 0 || queryStr.Question_index > evaluation.MaxIndex {
+		c.Error(errors.New("无效的题目序号"))
+		return
 	}
-	return -1
+
+	question := evaluation.Questions[queryStr.Question_index-1]
+	uq, _ := models.QryUserQuestion(queryStr.User_evaluation_id, question.Question_id)
+
+	mapData := make(map[string]interface{})
+	mapData["question_id"] = question.Question_id
+	mapData["user_question_id"] = uq.User_question_id
+	mapData["content"] = question.Content
+	mapData["answer"] = uq.Answer
+
+	c.JSON(http.StatusOK, models.Result{Data: &mapData})
+	return
 }
 
-// QryMyEvaluation 查询本人测评
-func QryMyEvaluation(c *gin.Context) {
+// UpdateUserQuestion 更新用户测评题目
+func UpdateUserQuestion(c *gin.Context) {
 	type param struct {
-		UID int `form:"user_id" binding:"required"` //用户ID
+		User_evaluation_id int    `form:"user_evaluation_id" binding:"required"` //用户测评ID
+		User_question_id   int    `form:"user_question_id"`                      //用户题目ID
+		Evaluation_id      int    `form:"evaluation_id" binding:"required"`      //测评ID
+		Question_id        int    `form:"question_id" binding:"required"`        //题目ID
+		Question_Index     int    `form:"question_index" binding:"required"`     //题目序号
+		Answer             string `form:"answer" binding:"required"`             //答案
 	}
-	//测评ID
+
 	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
+	err := c.ShouldBindWith(&queryStr, binding.Query)
+	if err != nil {
+		c.Error(err)
 		return
 	}
 
-	evaluation, err := models.GetMyEvaluation(queryStr.UID)
+	evaluation, err := models.QryEvaluationById(queryStr.Evaluation_id)
 	if err != nil {
-		c.Error(errors.New("查询有误"))
+		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusOK, models.Result{Data: evaluation})
+
+	if queryStr.Question_Index <= 0 || queryStr.Question_Index > evaluation.MaxIndex {
+		c.Error(errors.New("无效的题目序号"))
+		return
+	}
+
+	err = models.UpdateUserQuestion(queryStr.User_evaluation_id, queryStr.User_question_id, queryStr.Question_id, queryStr.Question_Index, queryStr.Answer)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.Result{Res: 0, Msg: "", Data: nil})
+	return
 }
 
 // QryReport 生成报告
 func QryReport(c *gin.Context) {
 	type param struct {
-		UEID   int    `form:"user_evaluation_id"`               //用户测评ID
-		EID    int    `form:"evaluation_id" binding:"required"` //测评ID
-		UID    int    `form:"user_id" binding:"required"`       //用户ID
-		CID    int    `form:"child_id" binding:"required"`      //儿童ID
-		TypeId string `form:"typeid"`                           //查看报告1；生成报告0
-		OpenId string `form:"openid" binding:"required"`        //用户openid
+		User_evaluation_id int    `form:"user_evaluation_id"` //用户测评ID
+		TypeId             string `form:"typeid"`             //查看报告1；生成报告0
+	}
+
+	var queryStr param
+	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
+		c.Error(errors.New("参数为空"))
+		return
+	}
+
+	userevaluation, err := models.QryUserEvaluationById(queryStr.User_evaluation_id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	evaluation, err := models.QryEvaluationById(userevaluation.Evaluation_id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	if len(userevaluation.Report_result) <= 0 && queryStr.TypeId == "0" {
+		ueIdString := strconv.Itoa(userevaluation.User_evaluation_id)
+		reportFileName := evaluation.Key_name + "_" + ueIdString + "_" + time.Now().Format("20060102150405") + ".pdf"
+
+		if runPrint("selreport", ueIdString+","+reportFileName) {
+			err = models.UpdatePersonCountForEvaluation(userevaluation.Evaluation_id)
+			if err != nil {
+				c.Error(err)
+				return
+			}
+
+			err = models.UpdateCurrentQuestionIdForUserEvaluation(userevaluation.User_evaluation_id, -1)
+			if err != nil {
+				c.Error(err)
+				return
+			}
+
+			userevaluation, err = models.QryUserEvaluationById(queryStr.User_evaluation_id)
+			if err != nil {
+				c.Error(err)
+				return
+			}
+		} else {
+			c.Error(errors.New("生成报告失败"))
+			return
+		}
+	}
+
+	mapData := make(map[string]interface{})
+	mapData["data_result"] = userevaluation.Data_result
+
+	c.JSON(http.StatusOK, models.Result{Data: &mapData})
+	return
+}
+
+// SendReport 发送报告
+func SendReport(c *gin.Context) {
+	type param struct {
+		User_evaluation_id int    `form:"user_evaluation_id" binding:"required"` //用户测评ID
+		OpenId             string `form:"openid" binding:"required"`             //用户openid
 	}
 	var queryStr param
 	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
 		c.Error(errors.New("参数为空"))
 		return
 	}
-	res := models.Result{}
-	ue := models.User_evaluation{Evaluation_id: queryStr.EID, User_id: queryStr.UID, Child_id: queryStr.CID, Current_question_id: -1, TypeId: queryStr.TypeId, User_evaluation_id: queryStr.UEID}
 
-	// use := models.User{Openid: queryStr.OpenId}
-	// uses, err := use.GetUserByOpenid()
-
-	userEvaluation, err := ue.QryUserEvaluation()
+	userevaluation, err := models.QryUserEvaluationById(queryStr.User_evaluation_id)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	evaluation, err := models.QryEvaluation(ue.Evaluation_id)
+
+	evaluation, err := models.QryEvaluationById(userevaluation.Evaluation_id)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	if len(userEvaluation.Report_result) <= 0 && queryStr.TypeId == "0" {
-		idstring := strconv.Itoa(userEvaluation.User_evaluation_id)
-		timetemp := time.Now().Format("20060102150405")
-		fileName := evaluation.Key_name + "_" + idstring + "_" + timetemp + ".pdf"
-		tool.Debug("User_evaluation_id" + idstring)
-		pdf := runPrint("selreport", idstring+","+fileName)
-		if pdf {
-			err := models.UpPersonCount(queryStr.EID)
-			if err != nil {
-				c.Error(err)
-				return
-			}
-			ue.User_evaluation_id = userEvaluation.User_evaluation_id
-			_, err = ue.UpdateEvaluation()
-			if err != nil {
-				c.Error(err)
-				return
-			}
 
-			// err = TemplateMessage(queryStr.OpenId, conf.Config.Host+"/front/report/"+fileName, evaluation.Category, uses.Nick_name)
-			// if err != nil {
-			// 	c.Error(err)
-			// 	return
-			// }
-
-			ue.TypeId = "1"
-			// ue.User_evaluation_id = userEvaluation.User_evaluation_id
-			userEvaluation, err = ue.QryUserEvaluation()
-			if err != nil {
-				c.Error(err)
-				return
-			}
-
-			res.Res = 0
-			res.Msg = ""
-			res.Data = userEvaluation
-			c.JSON(http.StatusOK, res)
-			return
-		}
-		c.Error(errors.New("生成报告失败"))
+	user := models.User{Openid: queryStr.OpenId}
+	uses, err := user.GetUserByOpenid()
+	if err != nil {
+		c.Error(err)
 		return
 	}
-	userEvaluation.Report_result = conf.Config.Host + userEvaluation.Report_result
-	res.Res = 0
-	res.Msg = ""
-	res.Data = userEvaluation
-	c.JSON(http.StatusOK, res)
+
+	childInfo, err := models.GetChildById(userevaluation.Child_id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	err = TemplateMessage(queryStr.OpenId, conf.Config.Host+userevaluation.Report_result, evaluation.Name, userevaluation.Evaluation_time.Format("2006-01-02 15:04:05"), uses.Nick_name, childInfo.Name)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.Result{Res: 0, Msg: "", Data: nil})
 	return
+}
+
+// QryMyEvaluation 查询本人测评
+func QryMyEvaluation(c *gin.Context) {
+	type param struct {
+		User_id int `form:"user_id" binding:"required"` //用户ID
+	}
+
+	var queryStr param
+	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
+		c.Error(errors.New("参数为空"))
+		return
+	}
+
+	userevaluations, err := models.QryUserEvaluationByUserId(queryStr.User_id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	var data []map[string]interface{}
+	if len(userevaluations) > 0 {
+		for _, userevaluation := range userevaluations {
+			evaluation, err := models.QryEvaluationById(userevaluation.Evaluation_id)
+			if err == nil {
+				mapData := make(map[string]interface{})
+
+				mapData["evaluation_id"] = evaluation.Evaluation_id
+				mapData["name"] = evaluation.Name
+				mapData["abstract"] = evaluation.Abstract
+				mapData["picture"] = evaluation.Picture
+				mapData["maxIndex"] = evaluation.MaxIndex
+				mapData["key_name"] = evaluation.Key_name
+				mapData["user_evaluation_id"] = userevaluation.User_evaluation_id
+				mapData["current_question_id"] = userevaluation.Current_question_id
+				mapData["evaluation_time"] = userevaluation.Evaluation_time
+
+				data = append(data, mapData)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, models.Result{Data: &data})
+}
+
+// QryEvaluationByChildId 查询所属儿童测评列表
+func QryEvaluationByChildId(c *gin.Context) {
+	type param struct {
+		Child_id int `form:"child_id" binding:"required"`
+	}
+
+	var queryStr param
+	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
+		c.Error(errors.New("参数为空"))
+		return
+	}
+
+	userevaluations, err := models.QryUserEvaluationByChildId(queryStr.Child_id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	var data []map[string]interface{}
+	if len(userevaluations) > 0 {
+		for _, userevaluation := range userevaluations {
+			evaluation, err := models.QryEvaluationById(userevaluation.Evaluation_id)
+			if err == nil {
+				mapData := make(map[string]interface{})
+
+				mapData["evaluation_id"] = evaluation.Evaluation_id
+				mapData["name"] = evaluation.Name
+				mapData["abstract"] = evaluation.Abstract
+				mapData["picture"] = evaluation.Picture
+				mapData["maxIndex"] = evaluation.MaxIndex
+				mapData["key_name"] = evaluation.Key_name
+				mapData["user_evaluation_id"] = userevaluation.User_evaluation_id
+				mapData["current_question_id"] = userevaluation.Current_question_id
+				mapData["evaluation_time"] = userevaluation.Evaluation_time
+
+				data = append(data, mapData)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, models.Result{Data: &data})
 }
 
 func runPrint(cmd string, args ...string) bool {
@@ -274,191 +397,4 @@ func runPrint(cmd string, args ...string) bool {
 	}
 	tool.Error(fmt.Sprintf("processstate:%v,out:%v,error:%v", ecmd.ProcessState, out.String(), errorout.String()))
 	return false
-}
-
-// QryPayEvalution 测评是否已经支付
-func QryPayEvalution(c *gin.Context) {
-	type param struct {
-		EID int `form:"evaluation_id" binding:"required"` //测评ID
-		UID int `form:"user_id" binding:"required"`       //用户ID
-		CID int `form:"child_id" binding:"required"`      //儿童ID
-	}
-
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-
-	res := models.Result{}
-	ue := models.User_evaluation{Evaluation_id: queryStr.EID, User_id: queryStr.UID, Child_id: queryStr.CID}
-	ev, err := ue.GetEvaluation()
-
-	if err == nil && ev.User_evaluation_id != 0 {
-		res.Res = 0
-		res.Msg = "已支付！"
-		res.Data = 0
-		c.JSON(http.StatusOK, res)
-		return
-	}
-
-	res.Res = 0
-	res.Msg = "未支付"
-	res.Data = 1
-	c.JSON(http.StatusOK, res)
-	return
-}
-
-// UpPayEvalution 测评支付完成
-func UpPayEvalution(c *gin.Context) {
-	type param struct {
-		EID int `form:"evaluation_id" binding:"required"` //测评ID
-		UID int `form:"user_id" binding:"required"`       //用户ID
-		CID int `form:"child_id" binding:"required"`      //儿童ID
-	}
-
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-
-	res := models.Result{}
-	ue := models.User_evaluation{Evaluation_id: queryStr.EID, User_id: queryStr.UID, Child_id: queryStr.CID}
-	id, err := ue.AddEvaluation()
-
-	if id != 1 && err != nil {
-		res.Res = 1
-		res.Msg = "更新用户课程表失败" + err.Error()
-		res.Data = nil
-		c.JSON(http.StatusOK, res)
-		return
-	}
-
-	res.Res = 0
-	res.Msg = ""
-	res.Data = nil
-	c.JSON(http.StatusOK, res)
-	return
-}
-
-// QryReports 查看报告
-func QryReports(c *gin.Context) {
-	type param struct {
-		UEID   int    `form:"user_evaluation_id" binding:"required"` //用户测评ID
-		EID    int    `form:"evaluation_id" binding:"required"`      //测评ID
-		OpenId string `form:"openid" binding:"required"`             //用户openid
-		UID    int    `form:"user_id" binding:"required"`            //用户ID
-	}
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-	res := models.Result{}
-	ue := models.User_evaluation{Evaluation_id: queryStr.EID, User_evaluation_id: queryStr.UEID}
-
-	userEvaluation, err := ue.QryEvaluation()
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	evaluation, err := models.QryEvaluation(ue.Evaluation_id)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	use := models.User{Openid: queryStr.OpenId}
-	uses, err := use.GetUserByOpenid()
-
-	childInfo, err := models.GetChildById(userEvaluation.Child_id)
-	err = TemplateMessage(queryStr.OpenId, conf.Config.Host+userEvaluation.Report_result, evaluation.Name, userEvaluation.Evaluation_time.Format("2006-01-02 15:04:05"), uses.Nick_name, childInfo.Name)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	res.Res = 0
-	res.Msg = ""
-	c.JSON(http.StatusOK, res)
-	return
-}
-
-// QrySingleEvaluation 获取单个测评
-func QrySingleEvaluation(c *gin.Context) {
-	type param struct {
-		EID int `form:"evaluation_id" binding:"required"` //测评ID
-	}
-	//测评ID
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-	res := models.Result{}
-	evaluation, err := models.QryEvaluation(queryStr.EID)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-	evaluation.MaxIndex, err = models.QryQuestionNum(queryStr.EID)
-	res.Res = 0
-	res.Msg = ""
-	res.Data = evaluation
-	c.JSON(http.StatusOK, res)
-	return
-}
-
-// QryEvaluationByChildId 查询所属儿童测评列表
-func QryEvaluationByChildId(c *gin.Context) {
-	type param struct {
-		User_id  int `form:"user_id" binding:"required"`
-		Child_id int `form:"child_id" binding:"required"`
-	}
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-	res := models.Result{}
-	ue, err := models.QryEvaluationByChildId(queryStr.User_id, queryStr.Child_id)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	res.Res = 0
-	res.Msg = ""
-	res.Data = ue
-	c.JSON(http.StatusOK, res)
-	return
-}
-
-// QryEvaluationGM 查询测评是否购买
-func QryEvaluationGM(c *gin.Context) {
-	type param struct {
-		EID int `form:"evaluation_id" binding:"required"`
-		CID int `form:"user_id" binding:"required"`
-	}
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-	res := models.Result{}
-
-	ue, err := models.QryEvaluationGM(queryStr.EID, queryStr.CID)
-	if err != nil || ue.User_evaluation_id == 0 {
-		res.Res = 1
-		res.Msg = "未购买"
-		c.JSON(http.StatusOK, res)
-		return
-	}
-
-	res.Res = 0
-	res.Msg = "已购买"
-	c.JSON(http.StatusOK, res)
-	return
 }

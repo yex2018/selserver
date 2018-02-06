@@ -46,12 +46,22 @@ func InitRouter() *gin.Engine {
 	router.GET("/GetRelation", apis.GetRelation)
 	//添加家长儿童关系
 	router.GET("/addchild", apis.AddUcAPI)
+
 	//获取测评列表
 	router.GET("/getevalutionlist", apis.QryEvaluation)
-	//获取题目
-	router.GET("/getevalution", apis.QryQuestion)
+	//根据id获取测评信息
+	router.GET("/GetEvalutionByID", apis.QrySingleEvaluation)
+	//增加用户测评
+	router.POST("/userevaluation", apis.AddUserEvaluation)
+	//获取用户测评题目
+	router.GET("/getevalution", apis.QryUserQuestion)
 	//上传答案
-	router.GET("/updateevalution", apis.UpAnswer)
+	router.GET("/updateevalution", apis.UpdateUserQuestion)
+	//生成测评报告
+	router.GET("/QryReport", apis.QryReport)
+	//发送测评报告
+	router.GET("/QryReports", apis.SendReport)
+
 	//获取验证码
 	router.GET("/sendcode", apis.SendSMS)
 	//获取课程列表
@@ -68,26 +78,17 @@ func InitRouter() *gin.Engine {
 	router.GET("/QryMyCourse", apis.QryMyCourse)
 	//插入视频播放记录
 	router.GET("/VideoPlaybackRecord", apis.QryMyVideo)
-	//生成报告
-	router.GET("/QryReport", apis.QryReport)
-	//查看报告
-	router.GET("/QryReports", apis.QryReports)
+
 	//生成支付订单
 	router.GET("/wxPayOrder", apis.WxPayOrder)
 	//微信支付回调
 	router.GET("/wxPayCallBack", apis.WxPayCallBack)
-	//测评是否已经支付
-	router.GET("/qrypayevalution", apis.QryPayEvalution)
 	//课程是否已经支付
 	router.GET("/qrypaycourse", apis.QryPayCourse)
-	//测评支付完成
-	router.GET("/uppayevalution", apis.UpPayEvalution)
 	//视频支付完成
 	router.GET("/uppaycourse", apis.UpPayCourse)
 	//根据id获取课程信息
 	router.GET("/GetCourseByID", apis.GetCourseByID)
-	//根据id获取测评信息
-	router.GET("/GetEvalutionByID", apis.QrySingleEvaluation)
 	//获取课程资源
 	router.GET("/GetResource", apis.GetResource)
 	//获取省、直辖市信息
@@ -102,8 +103,6 @@ func InitRouter() *gin.Engine {
 	router.GET("/QryUserCourse", apis.QryUserCourse)
 	//查询所属儿童已完成测评列表
 	router.GET("/QryEvaluationByChildId", apis.QryEvaluationByChildId)
-	//查询测评是否购买
-	router.GET("/QryEvaluationGM", apis.QryEvaluationGM)
 	//查询优惠码信息
 	router.GET("/QryCoupon", apis.QryUserCoupon)
 	//使用优惠码

@@ -80,7 +80,7 @@ func AddUserCoupon(Open_id string, Secen_id int, Code string, Ava_count int, Dis
 		return err
 	}
 
-	_, err = db.SqlDB.Exec("INSERT INTO user_coupon(openid, secen_id, code, ava_count, discount, expiry_date) VALUES (?, ?, ?, ?, ?, ?)", Open_id, Secen_id, Code, Ava_count, Discount, Expiry_date.Format("2006-01-02 15:04:05"))
+	_, err = db.SqlDB.Exec("INSERT INTO user_coupon(openid, secen_id, code, ava_count, discount, expiry_date) VALUES (?, ?, ?, ?, ?, ?)", Open_id, Secen_id, Code, Ava_count, Discount, Expiry_date)
 	return err
 }
 
