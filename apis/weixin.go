@@ -28,9 +28,11 @@ import (
 	"github.com/chanxuehong/wechat.v2/mp/menu"
 	"github.com/chanxuehong/wechat.v2/mp/message/callback/request"
 	"github.com/chanxuehong/wechat.v2/mp/message/callback/response"
+	"github.com/chanxuehong/wechat.v2/mp/message/custom"
 	"github.com/chanxuehong/wechat.v2/mp/message/template"
 	mpoauth2 "github.com/chanxuehong/wechat.v2/mp/oauth2"
 	"github.com/chanxuehong/wechat.v2/mp/user"
+
 	"github.com/chanxuehong/wechat.v2/oauth2"
 	"github.com/gin-gonic/gin"
 	"github.com/yex2018/selserver/conf"
@@ -74,7 +76,6 @@ func textMsgHandler(ctx *core.Context) {
 	msg := request.GetText(ctx.MixedMsg)
 	resp := response.NewText(msg.FromUserName, msg.ToUserName, msg.CreateTime, msg.Content)
 	ctx.RawResponse(resp) // 明文回复
-	//ctx.AESResponse(resp, 0, "", nil) // aes密文回复
 }
 
 func defaultMsgHandler(ctx *core.Context) {
@@ -88,7 +89,6 @@ func menuClickEventHandler(ctx *core.Context) {
 	event := menu.GetClickEvent(ctx.MixedMsg)
 	resp := response.NewText(event.FromUserName, event.ToUserName, event.CreateTime, "收到 click 类型的事件")
 	ctx.RawResponse(resp) // 明文回复
-	// ctx.AESResponse(resp, 0, "", nil) // aes密文回复
 }
 
 func defaultEventHandler(ctx *core.Context) {
@@ -101,64 +101,85 @@ func subscribeEventHandler(ctx *core.Context) {
 	ctx.NoneResponse()
 
 	event := request.GetSubscribeEvent(ctx.MixedMsg)
+	if event.FromUserName == "" {
+		return
+	}
 
+	srv := core.NewDefaultAccessTokenServer(wxAppId, wxAppSecret, nil)
+	clt := core.NewClient(srv, nil)
+	userInfo, err := user.Get(clt, event.FromUserName, "zh_CN")
+	if err != nil {
+		return
+	}
+
+	sendCustomMsg(clt, event.FromUserName, getSubscribeMsg(userInfo.Nickname))
+
+	sceneid := 0
 	scene, err := event.Scene()
-	if err == nil {
-		return
+	if scene != "" {
+		sceneid, err = strconv.Atoi(scene)
+		if err != nil {
+			sceneid = 0
+		}
 	}
 
-	if scene == "" || event.FromUserName == "" {
-		return
-	}
-
-	sceneid, err := strconv.Atoi(scene)
-	if err == nil {
+	user, err := models.RefreshUser(userInfo.OpenId, userInfo.UnionId, sceneid, userInfo.Nickname, userInfo.HeadImageURL, userInfo.Sex, userInfo.Country+","+userInfo.Province+","+userInfo.City)
+	if err != nil {
+		log.Printf("RefreshUser:%s\n", err.Error())
 		return
 	}
 
 	coupon, err := models.QryCoupon(sceneid)
-	if err == nil {
+	if err != nil {
+		log.Printf("QryCoupon:%s\n", err.Error())
 		return
 	}
 
 	span, err := time.ParseDuration(coupon.Ava_span)
-	if err == nil {
+	if err != nil {
+		log.Printf("ParseDuration:%s\n", err.Error())
 		return
 	}
 
-	couponCode := models.GenCouponCode()
-	tm := time.Now().Add(span)
-	err = models.AddUserCoupon(event.FromUserName, sceneid, couponCode, coupon.Ava_count, coupon.Discount, tm)
+	userCoupon, err := models.AddUserCoupon(user.User_id, sceneid, models.GenCouponCode(), coupon.Ava_count, coupon.Discount, time.Now().Add(span))
 	if err == nil {
-		srv := core.NewDefaultAccessTokenServer(wxAppId, wxAppSecret, nil)
-		clt := core.NewClient(srv, nil)
-		info, err := user.Get(clt, event.FromUserName, "zh_CN")
-
-		var userName string
-		if err == nil {
-			userName = info.Nickname
-		}
-
-		resp := response.NewText(event.FromUserName, event.ToUserName, event.CreateTime, "Hi，"+userName+"，恭喜您获得一个薄荷叶教育产品优惠码。\r\n\r\n优惠码："+couponCode+"\r\n优惠幅度：免费\r\n有效期限："+tm.Format("2006-01-02 15:04:05")+"\r\n有效次数："+strconv.Itoa(coupon.Ava_count)+"次\r\n\r\n您可以选择一款薄荷叶教育产品，在付款时输入优惠码即可使用。")
-		ctx.RawResponse(resp) // 明文回复
+		sendCustomMsg(clt, event.FromUserName, GetCouponMsg(userInfo.Nickname, &userCoupon))
+	} else {
+		log.Printf("AddUserCoupon:%s\n", err.Error())
 	}
 }
 
 func scanEventHandler(ctx *core.Context) {
 	log.Printf("收到scan事件:\n%s\n", ctx.MsgPlaintext)
+	ctx.NoneResponse()
 
 	event := request.GetScanEvent(ctx.MixedMsg)
 	if event.EventKey == "" || event.FromUserName == "" {
 		return
 	}
 
-	sceneid, err := strconv.Atoi(event.EventKey)
+	srv := core.NewDefaultAccessTokenServer(wxAppId, wxAppSecret, nil)
+	clt := core.NewClient(srv, nil)
+	userInfo, err := user.Get(clt, event.FromUserName, "zh_CN")
 	if err != nil {
+		return
+	}
+
+	sceneid := 0
+	sceneid, err = strconv.Atoi(event.EventKey)
+	if err != nil {
+		sceneid = 0
+	}
+
+	user, err := models.RefreshUser(userInfo.OpenId, userInfo.UnionId, sceneid, userInfo.Nickname, userInfo.HeadImageURL, userInfo.Sex, userInfo.Country+","+userInfo.Province+","+userInfo.City)
+	if err != nil {
+		log.Printf("RefreshUser:%s\n", err.Error())
 		return
 	}
 
 	coupon, err := models.QryCoupon(sceneid)
 	if err != nil {
+		log.Printf("QryCoupon:%s\n", err.Error())
 		return
 	}
 
@@ -168,24 +189,15 @@ func scanEventHandler(ctx *core.Context) {
 
 	span, err := time.ParseDuration(coupon.Ava_span)
 	if err != nil {
+		log.Printf("ParseDuration:%s\n", err.Error())
 		return
 	}
 
-	couponCode := models.GenCouponCode()
-	tm := time.Now().Add(span)
-	err = models.AddUserCoupon(event.FromUserName, sceneid, couponCode, coupon.Ava_count, coupon.Discount, tm)
+	userCoupon, err := models.AddUserCoupon(user.User_id, sceneid, models.GenCouponCode(), coupon.Ava_count, coupon.Discount, time.Now().Add(span))
 	if err == nil {
-		srv := core.NewDefaultAccessTokenServer(wxAppId, wxAppSecret, nil)
-		clt := core.NewClient(srv, nil)
-		info, err := user.Get(clt, event.FromUserName, "zh_CN")
-
-		var userName string
-		if err == nil {
-			userName = info.Nickname
-		}
-
-		resp := response.NewText(event.FromUserName, event.ToUserName, event.CreateTime, "Hi，"+userName+"，恭喜您获得一个薄荷叶教育产品优惠码。\r\n\r\n优惠码："+couponCode+"\r\n优惠幅度：免费\r\n有效期限："+tm.Format("2006-01-02 15:04:05")+"\r\n有效次数："+strconv.Itoa(coupon.Ava_count)+"次\r\n\r\n您可以选择一款薄荷叶教育产品，在付款时输入优惠码即可使用。")
-		ctx.RawResponse(resp) // 明文回复
+		sendCustomMsg(clt, event.FromUserName, GetCouponMsg(userInfo.Nickname, &userCoupon))
+	} else {
+		log.Printf("AddUserCoupon:%s\n", err.Error())
 	}
 }
 
@@ -265,23 +277,30 @@ func Page2Handler(c *gin.Context) {
 		return
 	}
 
-	userinfo, err := mpoauth2.GetUserInfo(token.AccessToken, token.OpenId, "", nil)
+	userInfo, err := mpoauth2.GetUserInfo(token.AccessToken, token.OpenId, "", nil)
 	if err != nil {
 		io.WriteString(c.Writer, err.Error())
 		tool.Error(err)
 		return
 	}
+
+	_, err = models.RefreshUser(userInfo.OpenId, userInfo.UnionId, 0, userInfo.Nickname, userInfo.HeadImageURL, userInfo.Sex, userInfo.Country+","+userInfo.Province+","+userInfo.City)
+	if err != nil {
+		tool.Error(err)
+		return
+	}
+
 	usercookie1 := http.Cookie{
 		Name:  "openid",
-		Value: userinfo.OpenId,
+		Value: userInfo.OpenId,
 	}
 	usercookie2 := http.Cookie{
 		Name:  "nickname",
-		Value: url.QueryEscape(userinfo.Nickname),
+		Value: url.QueryEscape(userInfo.Nickname),
 	}
 	usercookie3 := http.Cookie{
 		Name:  "headimgurl",
-		Value: userinfo.HeadImageURL,
+		Value: userInfo.HeadImageURL,
 	}
 	accesstoken, err := ticketserver.Ticket()
 	if err != nil {
@@ -394,4 +413,45 @@ func TemplateMessage(openid, url, evaluationName, evaluationTime, nick_name, chi
 		return err
 	}
 	return err
+}
+
+func getSubscribeMsg(nickName string) (msg string) {
+	msg = "Hi，" + nickName + "。\r\n" +
+		"这里是由一群北大教育学博士发起的薄荷叶教育。\r\n" +
+		"我们关注儿童的内在成长，希望每个孩子都有一颗丰盈的内心，生动而独特。\r\n" +
+		"我们希望用我们的专业精神，为大家提供一份对儿童真正有意义的教育资源。\r\n\r\n" +
+		"想知道SEL是什么？\r\n" +
+		"<a href=\"http://sel.bheonline.com/front/dist/?#/courseFree?course_id=1\">点击这里</a>\r\n\r\n" +
+		"想了解孩子SEL的发育水平？\r\n" +
+		"<a href=\"http://sel.bheonline.com/front/dist/?#/appbase/assessment\">点击这里</a>\r\n\r\n" +
+		"有任何问题，请给我们留言。\r\n\r\n" +
+		"薄荷叶教育，与孩子一起探索更好的自己！"
+
+	return
+}
+
+func GetCouponMsg(nickName string, userCoupon *models.UserCoupon) (msg string) {
+	msg = "Hi，" + nickName +
+		"，恭喜您获得一个薄荷叶教育产品优惠码。\r\n\r\n优惠码：" + userCoupon.Code +
+		"\r\n优惠幅度：免费\r\n有效期限：" + userCoupon.Expiry_date.Format("2006-01-02 15:04:05") +
+		"\r\n有效次数：" + strconv.Itoa(userCoupon.Ava_count) +
+		"次\r\n\r\n您可以选择一款薄荷叶教育产品，在付款时输入优惠码即可使用。"
+
+	return
+}
+
+func sendCustomMsg(clt *core.Client, toUser string, msg string) {
+	type TextContent struct {
+		Content string `json:"content"`
+	}
+
+	type CustomMsg struct {
+		Touser  string      `json:"touser"`
+		Msgtype string      `json:"msgtype"`
+		Text    TextContent `json:"text"`
+	}
+
+	textContent := TextContent{Content: msg}
+	customMsg := CustomMsg{Touser: toUser, Msgtype: "text", Text: textContent}
+	custom.Send(clt, customMsg)
 }

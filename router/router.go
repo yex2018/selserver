@@ -61,48 +61,41 @@ func InitRouter() *gin.Engine {
 	router.GET("/QryReport", apis.QryReport)
 	//发送测评报告
 	router.GET("/QryReports", apis.SendReport)
+	//查询本人测评
+	router.GET("/QryMyEvaluation", apis.QryMyEvaluation)
+	//查询所属儿童已完成测评列表
+	router.GET("/QryEvaluationByChildId", apis.QryEvaluationByChildId)
+
+	//获取课程列表
+	router.GET("/QryCourse", apis.QryCourse)
+	//根据id获取课程信息
+	router.GET("/GetCourseByID", apis.GetCourseByID)
+	//获取课程资源
+	router.GET("/GetResource", apis.GetCourseResource)
+	//增加用户测评
+	router.POST("/usercourse", apis.AddUserCourse)
+	//查看用户单个课程
+	router.GET("/QryUserCourse", apis.QryUserCourse)
+	//查询本人课程
+	router.GET("/QryMyCourse", apis.QryMyCourse)
 
 	//获取验证码
 	router.GET("/sendcode", apis.SendSMS)
-	//获取课程列表
-	router.GET("/QryCourse", apis.QryCourse)
-	//更新用户课程表
-	router.GET("/UpUserCouse", apis.UpUserCouse)
 	//获取视频播放地址
 	router.GET("/GetVideoPlayAuth", apis.GetVideo)
 	//上传儿童头像
 	router.GET("/UploadChildImg", apis.DownloadMedia)
-	//查询本人测评
-	router.GET("/QryMyEvaluation", apis.QryMyEvaluation)
-	//查询本人课程
-	router.GET("/QryMyCourse", apis.QryMyCourse)
-	//插入视频播放记录
-	router.GET("/VideoPlaybackRecord", apis.QryMyVideo)
 
 	//生成支付订单
 	router.GET("/wxPayOrder", apis.WxPayOrder)
 	//微信支付回调
 	router.GET("/wxPayCallBack", apis.WxPayCallBack)
-	//课程是否已经支付
-	router.GET("/qrypaycourse", apis.QryPayCourse)
-	//视频支付完成
-	router.GET("/uppaycourse", apis.UpPayCourse)
-	//根据id获取课程信息
-	router.GET("/GetCourseByID", apis.GetCourseByID)
-	//获取课程资源
-	router.GET("/GetResource", apis.GetResource)
-	//获取省、直辖市信息
-	router.GET("/GetProvinces", apis.GetProvinces)
-	//获取地级市信息
-	router.GET("/GetCities", apis.GetCities)
+
 	//更新个人中心信息
 	router.GET("/UpdateUser", apis.UpdateUser)
 	//获取个人中心信息
 	router.GET("/QryUser", apis.QryUser)
-	//查看用户单个课程
-	router.GET("/QryUserCourse", apis.QryUserCourse)
-	//查询所属儿童已完成测评列表
-	router.GET("/QryEvaluationByChildId", apis.QryEvaluationByChildId)
+
 	//查询优惠码信息
 	router.GET("/QryCoupon", apis.QryUserCoupon)
 	//使用优惠码

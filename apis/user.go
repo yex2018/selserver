@@ -22,22 +22,23 @@ func IndexApi(c *gin.Context) {
 
 // QryUserAPI 查询用户信息
 func QryUserAPI(c *gin.Context) {
-	cid := c.Query("openid")
-	if cid == "" {
+	type param struct {
+		Openid string `form:"openid" binding:"required"` //测评ID
+	}
+
+	var queryStr param
+	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
 		c.Error(errors.New("参数为空"))
 		return
 	}
-	p := models.User{Openid: cid}
-	user, err := p.GetUserByOpenid()
-	res := models.Result{}
-	if err != nil || user.Openid == "" {
+
+	user, err := models.GetUserByOpenid(queryStr.Openid)
+	if err != nil {
 		c.Error(errors.New("没有该用户信息请登录！"))
 		return
 	}
-	res.Res = 0
-	res.Msg = ""
-	res.Data = user
-	c.JSON(http.StatusOK, res)
+
+	c.JSON(http.StatusOK, models.Result{Data: &user})
 }
 
 // Login 登录判断.
@@ -61,7 +62,7 @@ func Login(c *gin.Context) {
 	_, err := p.GetUser()
 	// 家长登录插入客户信息
 	if err != nil {
-		p := models.User{Unionid: postStr.Cunionid, Role: 0, Name: postStr.Cname, Openid: postStr.ID, Phone_number: postStr.Ctel}
+		p := models.User{Unionid: postStr.Cunionid, Name: postStr.Cname, Openid: postStr.ID, Phone_number: postStr.Ctel}
 		ra, err := p.Insert()
 		if err != nil {
 			c.Error(err)
@@ -208,9 +209,8 @@ func UpdateUser(c *gin.Context) {
 	type param struct {
 		Name       string `form:"name" binding:"required"`
 		Gender     int    `form:"gender" binding:"required"`
-		Residence  string `form:"residence" binding:"required"`
 		Birth_date string `form:"birth_date" binding:"required"`
-		User_id    int    `form:"user_id" binding:"required"`
+		User_id    int64  `form:"user_id" binding:"required"`
 		Nick_name  string `form:"nick_name" binding:"required"`
 	}
 
@@ -220,7 +220,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	p := models.User{Name: queryStr.Name, Gender: queryStr.Gender, Residence: queryStr.Residence, Birth_date: queryStr.Birth_date, User_id: queryStr.User_id, Nick_name: queryStr.Nick_name}
+	p := models.User{Name: queryStr.Name, Gender: queryStr.Gender, Birth_date: queryStr.Birth_date, User_id: queryStr.User_id, Nick_name: queryStr.Nick_name}
 
 	id, err := p.UpdateUser()
 	res := models.Result{}
@@ -253,9 +253,6 @@ func QryUser(c *gin.Context) {
 		c.JSON(http.StatusOK, res)
 		return
 	}
-	cities, err := models.GetCity(user.Residence)
-	province, err := models.GetProvince(cities.Provinceid)
-	user.Residence = province.Provinceid + "|" + cities.Cityid
 	res.Res = 0
 	res.Msg = ""
 	res.Data = user
@@ -325,7 +322,7 @@ func QrySingleChild(c *gin.Context) {
 // QryUserCoupon 查询用户优惠码信息
 func QryUserCoupon(c *gin.Context) {
 	type param struct {
-		User_id     int    `form:"user_id" binding:"required"`
+		User_id     int64  `form:"user_id" binding:"required"`
 		Coupon_code string `form:"coupon_code" binding:"required"`
 	}
 

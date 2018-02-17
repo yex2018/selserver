@@ -3,28 +3,73 @@ package models
 import (
 	"time"
 
+	"database/sql"
+
 	db "github.com/yex2018/selserver/database"
+	"github.com/yex2018/selserver/tool"
 )
 
 type User struct {
-	User_id       int    `json:"user_id" form:"user_id"`
-	Phone_number  string `json:"phone_number" form:"phone_number"`
-	Unionid       string `json:"unionid" form:"unionid"`
-	Name          string `json:"name" form:"name"`
-	Role          int    `json:"role" form:"role"`
+	User_id       int64  `json:"user_id" form:"user_id"`
 	Openid        string `json:"openid" form:"openid"`
-	Head_portrait string `json:"head_portrait" form:"head_portrait"`
+	Unionid       string `json:"unionid" form:"unionid"`
+	Sceneid       int    `json:"sceneid" form:"sceneid"`
 	Nick_name     string `json:"nick_name" form:"nick_name"`
+	Head_portrait string `json:"head_portrait" form:"head_portrait"`
 	Gender        int    `json:"gender" form:"gender"`
-	Birth_date    string `json:"birth_date" form:"birth_date"`
 	Residence     string `json:"residence" form:"residence"`
-	Child_id      string `json:"child_id" form:"child_id" xorm:"-"`
+	Phone_number  string `json:"phone_number" form:"phone_number"`
+	Name          string `json:"name" form:"name"`
+	Birth_date    string `json:"birth_date" form:"birth_date"`
 }
 
 // GetUserByOpenid 通过微信身份标识获取客户信息
-func (u *User) GetUserByOpenid() (user User, err error) {
-	_, err = db.Engine.Join("left", "uc_relation", "uc_relation.user_id=user.user_id").Where("user.openid = ?", u.Openid).Get(&user)
-	return user, err
+func GetUserByOpenid(openid string) (user User, err error) {
+	user.Openid = openid
+
+	err = db.SqlDB.QueryRow("SELECT user_id,unionid,nick_name,head_portrait,gender,residence,phone_number,name,birth_date FROM user WHERE openid=?", openid).Scan(&user.User_id, &user.Unionid, &user.Nick_name, &user.Head_portrait, &user.Gender, &user.Residence, &user.Phone_number, &user.Name, &user.Birth_date)
+	return
+}
+
+// RefreshUser 刷新用户信息
+func RefreshUser(openid string, unionid string, sceneid int, nick_name string, head_portrait string, gender int, residence string) (user User, err error) {
+	user, err = GetUserByOpenid(openid)
+	if err == sql.ErrNoRows {
+		user.Openid = openid
+		user.Unionid = unionid
+		user.Sceneid = sceneid
+		user.Nick_name = nick_name
+		user.Head_portrait = head_portrait
+		user.Gender = gender
+		user.Residence = residence
+
+		var rs sql.Result
+		rs, err = db.SqlDB.Exec("INSERT INTO user(openid, unionid, sceneid, nick_name, head_portrait, gender, residence, birth_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", openid, unionid, sceneid, nick_name, head_portrait, gender, residence, time.Now())
+		if err == nil {
+			user.User_id, err = rs.LastInsertId()
+		}
+	} else if err == nil {
+		user.Openid = openid
+		user.Unionid = unionid
+		user.Sceneid = sceneid
+		user.Nick_name = nick_name
+		user.Head_portrait = head_portrait
+		user.Gender = gender
+		user.Residence = residence
+
+		tool.Info(openid)
+		tool.Info(unionid)
+		tool.Info(sceneid)
+		tool.Info(nick_name)
+		tool.Info(head_portrait)
+		tool.Info(gender)
+		tool.Info(residence)
+
+		_, err = db.SqlDB.Exec("UPDATE user SET nick_name=?,head_portrait=?,gender=?,residence=? WHERE openid=?", nick_name, head_portrait, gender, residence, openid)
+		tool.Info(err)
+	}
+
+	return
 }
 
 // GetUser 获取客户信息
@@ -35,7 +80,7 @@ func (u *User) GetUser() (user User, err error) {
 
 // Insert 家长注册
 func (u *User) Insert() (id int64, err error) {
-	rs, err := db.SqlDB.Exec("INSERT INTO user(phone_number, unionid, nick_name, role, openid,head_portrait) VALUES (?, ?, ?, ?, ?,?)", u.Phone_number, u.Unionid, u.Name, 0, u.Openid, u.Head_portrait)
+	rs, err := db.SqlDB.Exec("INSERT INTO user(phone_number, unionid, nick_name, openid, head_portrait) VALUES (?, ?, ?, ?, ?)", u.Phone_number, u.Unionid, u.Name, u.Openid, u.Head_portrait)
 
 	if err != nil {
 		return
@@ -140,7 +185,7 @@ func (child *Child) UpChild() (id int64, err error) {
 
 // UpdateUser 更新个人中心信息
 func (u *User) UpdateUser() (id int64, err error) {
-	rs, err := db.SqlDB.Exec("update user set name=?,gender=?,birth_date=?,residence=?,nick_name=? where user_id=?", u.Name, u.Gender, u.Birth_date, u.Residence, u.Nick_name, u.User_id)
+	rs, err := db.SqlDB.Exec("update user set name=?,gender=?,birth_date=?,nick_name=? where user_id=?", u.Name, u.Gender, u.Birth_date, u.Nick_name, u.User_id)
 	if err != nil {
 		return
 	}

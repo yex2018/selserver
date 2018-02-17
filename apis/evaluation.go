@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin/binding"
-
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/yex2018/selserver/conf"
 	"github.com/yex2018/selserver/models"
 	"github.com/yex2018/selserver/tool"
@@ -22,6 +21,7 @@ import (
 func QryEvaluation(c *gin.Context) {
 	mapCategory := make(map[string][]interface{})
 
+	var categories []string
 	evaluations := models.GetEvaluations()
 	if len(evaluations) > 0 {
 		for _, value := range evaluations {
@@ -33,15 +33,18 @@ func QryEvaluation(c *gin.Context) {
 			mapEvaluation["person_count"] = value.Person_count
 			mapEvaluation["picture"] = value.Picture
 
+			if _, ok := mapCategory[value.Category]; !ok {
+				categories = append(categories, value.Category)
+			}
 			mapCategory[value.Category] = append(mapCategory[value.Category], mapEvaluation)
 		}
 	}
 
 	var data []map[string]interface{}
-	for key, value := range mapCategory {
+	for _, categoriy := range categories {
 		mapData := make(map[string]interface{})
-		mapData["category"] = key
-		mapData["data"] = value
+		mapData["category"] = categoriy
+		mapData["data"] = mapCategory[categoriy]
 		data = append(data, mapData)
 	}
 	c.JSON(http.StatusOK, models.Result{Data: &data})
@@ -50,16 +53,16 @@ func QryEvaluation(c *gin.Context) {
 // QrySingleEvaluation 获取单个测评
 func QrySingleEvaluation(c *gin.Context) {
 	type param struct {
-		EID int `form:"evaluation_id" binding:"required"` //测评ID
+		Evaluation_id int `form:"evaluation_id" binding:"required"` //测评ID
 	}
-	//测评ID
+
 	var queryStr param
 	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
 		c.Error(errors.New("参数为空"))
 		return
 	}
 
-	evaluation, err := models.QryEvaluationById(queryStr.EID)
+	evaluation, err := models.QryEvaluationById(queryStr.Evaluation_id)
 	if err != nil {
 		c.Error(err)
 		return
@@ -69,7 +72,6 @@ func QrySingleEvaluation(c *gin.Context) {
 	mapData["evaluation_id"] = evaluation.Evaluation_id
 	mapData["name"] = evaluation.Name
 	mapData["category"] = evaluation.Category
-	mapData["evaluation_id"] = evaluation.Evaluation_id
 	mapData["abstract"] = evaluation.Abstract
 	mapData["details"] = evaluation.Details
 	mapData["price"] = evaluation.Price
@@ -270,8 +272,7 @@ func SendReport(c *gin.Context) {
 		return
 	}
 
-	user := models.User{Openid: queryStr.OpenId}
-	uses, err := user.GetUserByOpenid()
+	user, err := models.GetUserByOpenid(queryStr.OpenId)
 	if err != nil {
 		c.Error(err)
 		return
@@ -283,7 +284,7 @@ func SendReport(c *gin.Context) {
 		return
 	}
 
-	err = TemplateMessage(queryStr.OpenId, conf.Config.Host+userevaluation.Report_result, evaluation.Name, userevaluation.Evaluation_time.Format("2006-01-02 15:04:05"), uses.Nick_name, childInfo.Name)
+	err = TemplateMessage(queryStr.OpenId, conf.Config.Host+userevaluation.Report_result, evaluation.Name, userevaluation.Evaluation_time.Format("2006-01-02 15:04:05"), user.Nick_name, childInfo.Name)
 	if err != nil {
 		c.Error(err)
 		return

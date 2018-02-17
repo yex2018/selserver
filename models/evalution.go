@@ -34,10 +34,10 @@ type UserEvaluation struct {
 	Evaluation_id       int       `json:"evaluation_id"`
 	User_id             int       `json:"user_id"`
 	Child_id            int       `json:"child_id"`
-	Evaluation_time     time.Time `json:"evaluation_time" form:"evaluation_time"`
-	Current_question_id int       `json:"current_question_id" form:"current_question_id"`
-	Data_result         string    `json:"data_result" form:"data_result" xorm:"null"`
-	Report_result       string    `json:"report_result" form:"report_result" xorm:"null"`
+	Evaluation_time     time.Time `json:"evaluation_time"`
+	Current_question_id int       `json:"current_question_id"`
+	Data_result         string    `json:"data_result"`
+	Report_result       string    `json:"report_result"`
 }
 
 type UserQuestion struct {
@@ -47,11 +47,9 @@ type UserQuestion struct {
 	Answer             string `json:"answer"`
 }
 
-var g_mapEvaluations map[int]Evaluation
+var g_Evaluations []Evaluation
 
 func init() {
-	g_mapEvaluations = make(map[int]Evaluation)
-
 	rowEvaluations, err := db.SqlDB.Query("SELECT evaluation_id,name,category,abstract,details,price,page_number,person_count,picture,sample_report,key_name FROM evaluation")
 	if err != nil {
 		return
@@ -85,25 +83,23 @@ func init() {
 			eva.MaxIndex++
 		}
 
-		g_mapEvaluations[eva.Evaluation_id] = eva
+		g_Evaluations = append(g_Evaluations, eva)
 	}
 }
 
 // GetEvaluations 获取测评列表
 func GetEvaluations() (evaluations []Evaluation) {
-	for _, value := range g_mapEvaluations {
-		evaluations = append(evaluations, value)
-	}
-	return
+	return g_Evaluations
 }
 
 // QryEvaluationById 获取单个测评
 func QryEvaluationById(evaluation_id int) (result *Evaluation, err error) {
-	value, ok := g_mapEvaluations[evaluation_id]
-	if ok == true {
-		result = &value
-		err = nil
-		return
+	for i, _ := range g_Evaluations {
+		if g_Evaluations[i].Evaluation_id == evaluation_id {
+			result = &g_Evaluations[i]
+			err = nil
+			return
+		}
 	}
 
 	return result, errors.New("无效的参数")
@@ -111,8 +107,8 @@ func QryEvaluationById(evaluation_id int) (result *Evaluation, err error) {
 
 // UpdatePersonCountForEvaluation 更新测评已测人数
 func UpdatePersonCountForEvaluation(evaluation_id int) (err error) {
-	value, ok := g_mapEvaluations[evaluation_id]
-	if ok == true {
+	value, err := QryEvaluationById(evaluation_id)
+	if err == nil {
 		personCount := value.Person_count + 1
 
 		_, err = db.SqlDB.Exec("UPDATE evaluation SET person_count=? WHERE evaluation_id=?", personCount, evaluation_id)
@@ -124,7 +120,7 @@ func UpdatePersonCountForEvaluation(evaluation_id int) (err error) {
 		return nil
 	}
 
-	return errors.New("无效的参数")
+	return err
 }
 
 // AddUserEvaluation 增加用户测评
