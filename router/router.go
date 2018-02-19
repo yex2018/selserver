@@ -1,14 +1,12 @@
 package router
 
 import (
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yex2018/selserver/apis"
-	"github.com/yex2018/selserver/tool"
 )
 
 // InitRouter 初始化路由
@@ -23,29 +21,26 @@ func InitRouter() *gin.Engine {
 	router.StaticFile("/MP_verify_wKkoD2xPfCrtcZer.txt", "./front/MP_verify_wKkoD2xPfCrtcZer.txt")
 
 	router.GET("/", apis.IndexApi)
-	// authorized := router.Group("/")
-	// authorized.Use(jwtAuth)
-	// {
-	// 	authorized.GET("login", apis.Login)
-	// }
+
 	//微信授权
 	router.GET("/oauth", apis.Page1Handler)
 	router.GET("/oauth1", apis.Page2Handler)
 	router.Any("/weixin", apis.WeixinHandler)
-	//登录
-	router.POST("/login", apis.Login)
+
 	//通过openid查询用户信息
-	router.GET("/qryuser", apis.QryUserAPI)
+	router.GET("/qryuser", apis.QryUserByOpenId)
+	//获取个人中心信息
+	router.GET("/QryUser", apis.QryUserByUserId)
+	//更新个人中心信息
+	router.GET("/UpdateUser", apis.UpdateUser)
 	//查询儿童信息
-	router.GET("/qrychild", apis.QryUcAPI)
+	router.GET("/qrychild", apis.QryUserChild)
 	//查询单个儿童信息
 	router.GET("/qrysinglechild", apis.QrySingleChild)
-	//查询家长儿童relation
-	router.GET("/QryRelation", apis.QryRelation)
 	//获取relation列表
 	router.GET("/GetRelation", apis.GetRelation)
 	//添加家长儿童关系
-	router.GET("/addchild", apis.AddUcAPI)
+	router.GET("/addchild", apis.UpdateUserChild)
 
 	//获取测评列表
 	router.GET("/getevalutionlist", apis.QryEvaluation)
@@ -79,8 +74,6 @@ func InitRouter() *gin.Engine {
 	//查询本人课程
 	router.GET("/QryMyCourse", apis.QryMyCourse)
 
-	//获取验证码
-	router.GET("/sendcode", apis.SendSMS)
 	//获取视频播放地址
 	router.GET("/GetVideoPlayAuth", apis.GetVideo)
 	//上传儿童头像
@@ -90,11 +83,6 @@ func InitRouter() *gin.Engine {
 	router.GET("/wxPayOrder", apis.WxPayOrder)
 	//微信支付回调
 	router.GET("/wxPayCallBack", apis.WxPayCallBack)
-
-	//更新个人中心信息
-	router.GET("/UpdateUser", apis.UpdateUser)
-	//获取个人中心信息
-	router.GET("/QryUser", apis.QryUser)
 
 	//查询优惠码信息
 	router.GET("/QryCoupon", apis.QryUserCoupon)
@@ -114,15 +102,4 @@ func handleErrors(c *gin.Context) {
 			"data": nil,
 		})
 	}
-}
-
-func jwtAuth(c *gin.Context) {
-	jwt := c.GetHeader("token")
-	if jwt != "" {
-		if result := tool.JWTVal(jwt); result {
-			c.Next()
-		}
-	}
-	c.AbortWithError(200, errors.New("jwt error"))
-	return
 }

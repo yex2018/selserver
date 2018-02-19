@@ -73,8 +73,8 @@ func WxPayOrder(c *gin.Context) {
 		CourseId string  `form:"course_id" binding:"required"` //课程ID
 		Price    float64 `form:"price" binding:"required"`     //价格
 		OpenId   string  `form:"openid" binding:"required"`    //用户openid
-		Uid      int     `form:"user_id" binding:"required"`   //用户ID
-		Cid      int     `form:"child_id"`                     //儿童ID
+		Uid      int64   `form:"user_id" binding:"required"`   //用户ID
+		Cid      int64   `form:"child_id"`                     //儿童ID
 	}
 
 	var queryStr param
@@ -104,11 +104,11 @@ func WxPayOrder(c *gin.Context) {
 	// log.Printf("NonceStr:" + order.NonceStr)
 	order.SignType = "MD5"
 	order.Detail = ""
-	println("Cid:" + strconv.Itoa(queryStr.Cid))
+	println("Cid:" + strconv.FormatInt(queryStr.Cid, 10))
 	if queryStr.Cid != 0 {
-		order.Attach = queryStr.CourseId + "|" + strconv.Itoa(queryStr.Uid) + "|" + strconv.Itoa(queryStr.Cid)
+		order.Attach = queryStr.CourseId + "|" + strconv.FormatInt(queryStr.Uid, 10) + "|" + strconv.FormatInt(queryStr.Cid, 10)
 	} else {
-		order.Attach = queryStr.CourseId + "|" + strconv.Itoa(queryStr.Uid)
+		order.Attach = queryStr.CourseId + "|" + strconv.FormatInt(queryStr.Uid, 10)
 	}
 	order.FeeType = "CNY"
 

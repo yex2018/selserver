@@ -9,21 +9,21 @@ import (
 )
 
 type Resource struct {
-	Resource_id int    `json:"resource_id" form:"resource_id"`
+	Resource_id int64  `json:"resource_id" form:"resource_id"`
 	Name        string `json:"name" form:"name"`
 	Type        int    `json:"type" form:"resource_type"`
 	Url         string `json:"url" form:"url"`
 }
 
 type CResource struct {
-	Cresource_id int      `json:"cresource_id" form:"cresource_id"`
+	Cresource_id int64    `json:"cresource_id" form:"cresource_id"`
 	Resource     Resource `json:"resource" form:"resource"`
 	Index        int      `json:"index" form:"index"`
 	Free         int      `json:"free" form:"free"`
 }
 
 type Course struct {
-	Course_id    int         `json:"course_id"`
+	Course_id    int64       `json:"course_id"`
 	Name         string      `json:"name"`
 	Category     string      `json:"category"`
 	Abstract     string      `json:"abstract"`
@@ -35,13 +35,13 @@ type Course struct {
 }
 
 type UserCourse struct {
-	User_course_id int       `json:"user_course_id" form:"user_course_id"`
-	Course_id      int       `json:"course_id" form:"course_id"`
-	User_id        int       `json:"user_id" form:"user_id"`
+	User_course_id int64     `json:"user_course_id" form:"user_course_id"`
+	Course_id      int64     `json:"course_id" form:"course_id"`
+	User_id        int64     `json:"user_id" form:"user_id"`
 	Course_time    time.Time `json:"course_time" form:"course_time"`
 }
 
-var g_mapResources map[int]Resource
+var g_mapResources map[int64]Resource
 var g_Courses []Course
 
 func init() {
@@ -52,7 +52,7 @@ func init() {
 	}
 	defer rowResources.Close()
 
-	g_mapResources = make(map[int]Resource)
+	g_mapResources = make(map[int64]Resource)
 	for rowResources.Next() {
 		var resource Resource
 
@@ -88,7 +88,7 @@ func init() {
 		for rowCResources.Next() {
 			var cresource CResource
 
-			var resource_id int
+			var resource_id int64
 			err = rowCResources.Scan(&cresource.Cresource_id, &resource_id, &cresource.Index, &cresource.Free)
 			if err != nil {
 				return
@@ -108,7 +108,7 @@ func GetCourses() (courses []Course) {
 }
 
 // QryCourseByID 根据id获取课程信息
-func QryCourseById(course_id int) (result *Course, err error) {
+func QryCourseById(course_id int64) (result *Course, err error) {
 	for i, _ := range g_Courses {
 		if g_Courses[i].Course_id == course_id {
 			result = &g_Courses[i]
@@ -121,7 +121,7 @@ func QryCourseById(course_id int) (result *Course, err error) {
 }
 
 // UpdatePersonCountForCourse 更新测评已测人数
-func UpdatePersonCountForCourse(course_id int) (err error) {
+func UpdatePersonCountForCourse(course_id int64) (err error) {
 	value, err := QryCourseById(course_id)
 	if err == nil {
 		personCount := value.Person_count + 1
@@ -139,7 +139,7 @@ func UpdatePersonCountForCourse(course_id int) (err error) {
 }
 
 // AddUserEvaluation 增加用户课程
-func AddUserCourse(course_id int, user_id int, course_time time.Time) (id int64, err error) {
+func AddUserCourse(course_id int64, user_id int64, course_time time.Time) (id int64, err error) {
 	rs, err := db.SqlDB.Exec("INSERT INTO user_course(course_id,user_id,course_time) VALUES (?, ?, ?)", course_id, user_id, course_time)
 	if err != nil {
 		return 0, err
@@ -149,7 +149,7 @@ func AddUserCourse(course_id int, user_id int, course_time time.Time) (id int64,
 }
 
 // QryUserCourse 查看用户单个课程
-func QryUserCourse(course_id, user_id int) (user_course_id int, err error) {
+func QryUserCourse(course_id, user_id int64) (user_course_id int64, err error) {
 	err = db.SqlDB.QueryRow("SELECT user_course_id from user_course WHERE course_id=? AND user_id=?", course_id, user_id).Scan(&user_course_id)
 	if err == nil {
 		return user_course_id, err
@@ -161,7 +161,7 @@ func QryUserCourse(course_id, user_id int) (user_course_id int, err error) {
 }
 
 // QryUserCourseByUserId 根据用户ID获取用户课程
-func QryUserCourseByUserId(user_id int) (usercourses []UserCourse, err error) {
+func QryUserCourseByUserId(user_id int64) (usercourses []UserCourse, err error) {
 	rows, err := db.SqlDB.Query("SELECT user_course_id,course_id,course_time FROM user_course WHERE user_id=? ORDER BY course_time DESC", user_id)
 	if err != nil {
 		return nil, err

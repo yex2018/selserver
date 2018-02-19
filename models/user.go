@@ -1,12 +1,12 @@
 package models
 
 import (
+	"database/sql"
+	"errors"
+	"math/rand"
 	"time"
 
-	"database/sql"
-
 	db "github.com/yex2018/selserver/database"
-	"github.com/yex2018/selserver/tool"
 )
 
 type User struct {
@@ -23,17 +23,81 @@ type User struct {
 	Birth_date    string `json:"birth_date" form:"birth_date"`
 }
 
-// GetUserByOpenid 通过微信身份标识获取客户信息
-func GetUserByOpenid(openid string) (user User, err error) {
+type Child struct {
+	Child_id      int64     `json:"child_id" form:"child_id"`
+	Name          string    `json:"name" form:"name"`
+	Gender        int       `json:"gender" form:"gender"`
+	Birth_date    time.Time `json:"birth_date" form:"birth_date"`
+	Head_portrait string    `json:"head_portrait" form:"head_portrait"`
+}
+
+type Uc_relation struct {
+	Uc_relation_id int64 `json:"uc_relation_id" form:"uc_relation_id"`
+	User_id        int64 `json:"user_id" form:"user_id"`
+	Child_id       int64 `json:"child_id" form:"child_id"`
+	Relation       int   `json:"relation" form:"relation"`
+}
+
+type Coupon struct {
+	Coupon_id int64
+	Secen_id  int
+	Flag      int
+	Ava_count int
+	Ava_span  string
+	Discount  string
+}
+
+type UserCoupon struct {
+	User_coupon_id int64     `json:"user_coupon_id" form:"user_coupon_id"`
+	User_id        int64     `json:"user_id" form:"user_id"`
+	Code           string    `json:"code" form:"code"`
+	Ava_count      int       `json:"ava_count" form:"ava_count"`
+	Discount       string    `json:"discount" form:"discount"`
+	Expiry_date    time.Time `json:"expiry_date" form:"expiry_date"`
+}
+
+var g_mapCoupons map[int]Coupon
+
+func init() {
+	g_mapCoupons = make(map[int]Coupon)
+
+	rowCoupons, err := db.SqlDB.Query("SELECT coupon_id,secen_id,flag,ava_count,ava_span,discount FROM coupon")
+	if err != nil {
+		return
+	}
+	defer rowCoupons.Close()
+
+	for rowCoupons.Next() {
+		var coupon Coupon
+
+		err = rowCoupons.Scan(&coupon.Coupon_id, &coupon.Secen_id, &coupon.Flag, &coupon.Ava_count, &coupon.Ava_span, &coupon.Discount)
+		if err != nil {
+			return
+		}
+
+		g_mapCoupons[coupon.Secen_id] = coupon
+	}
+}
+
+// GetUserByOpenId 通过微信身份标识获取客户信息
+func GetUserByOpenId(openid string) (user User, err error) {
 	user.Openid = openid
 
 	err = db.SqlDB.QueryRow("SELECT user_id,unionid,nick_name,head_portrait,gender,residence,phone_number,name,birth_date FROM user WHERE openid=?", openid).Scan(&user.User_id, &user.Unionid, &user.Nick_name, &user.Head_portrait, &user.Gender, &user.Residence, &user.Phone_number, &user.Name, &user.Birth_date)
 	return
 }
 
+// GetUserByUserId 通过ID获取客户信息
+func GetUserByUserId(user_id int64) (user User, err error) {
+	user.User_id = user_id
+
+	err = db.SqlDB.QueryRow("SELECT openid,unionid,nick_name,head_portrait,gender,residence,phone_number,name,birth_date FROM user WHERE user_id=?", user_id).Scan(&user.Openid, &user.Unionid, &user.Nick_name, &user.Head_portrait, &user.Gender, &user.Residence, &user.Phone_number, &user.Name, &user.Birth_date)
+	return
+}
+
 // RefreshUser 刷新用户信息
 func RefreshUser(openid string, unionid string, sceneid int, nick_name string, head_portrait string, gender int, residence string) (user User, err error) {
-	user, err = GetUserByOpenid(openid)
+	user, err = GetUserByOpenId(openid)
 	if err == sql.ErrNoRows {
 		user.Openid = openid
 		user.Unionid = unionid
@@ -57,169 +121,154 @@ func RefreshUser(openid string, unionid string, sceneid int, nick_name string, h
 		user.Gender = gender
 		user.Residence = residence
 
-		tool.Info(openid)
-		tool.Info(unionid)
-		tool.Info(sceneid)
-		tool.Info(nick_name)
-		tool.Info(head_portrait)
-		tool.Info(gender)
-		tool.Info(residence)
-
 		_, err = db.SqlDB.Exec("UPDATE user SET nick_name=?,head_portrait=?,gender=?,residence=? WHERE openid=?", nick_name, head_portrait, gender, residence, openid)
-		tool.Info(err)
 	}
 
 	return
 }
 
-// GetUser 获取客户信息
-func (u *User) GetUser() (user User, err error) {
-	_, err = db.Engine.Get(user)
-	return user, err
-}
+// UpdateUser 更新用户信息
+func UpdateUser(user_id int64, nick_name string, gender int, name string, birth_date string) (err error) {
+	_, err = db.SqlDB.Exec("UPDATE user SET nick_name=?,gender=?,name=?,birth_date=? WHERE user_id=?", nick_name, gender, name, birth_date, user_id)
 
-// Insert 家长注册
-func (u *User) Insert() (id int64, err error) {
-	rs, err := db.SqlDB.Exec("INSERT INTO user(phone_number, unionid, nick_name, openid, head_portrait) VALUES (?, ?, ?, ?, ?)", u.Phone_number, u.Unionid, u.Name, u.Openid, u.Head_portrait)
-
-	if err != nil {
-		return
-	}
-
-	id, err = rs.LastInsertId()
 	return
 }
 
-// Update 老师更新
-func (u *User) Update() (id int64, err error) {
-	rs, err := db.SqlDB.Exec("update user set unionid=? ,openid=?", u.Unionid, u.Openid)
-	if err != nil {
-		return
-	}
-	id, err = rs.LastInsertId()
+// GetChildById 通过ID获取儿童信息
+func GetChildById(child_id int64) (child Child, err error) {
+	child.Child_id = child_id
+
+	err = db.SqlDB.QueryRow("SELECT name,gender,birth_date,head_portrait FROM child WHERE child_id=?", child_id).Scan(&child.Name, &child.Gender, &child.Birth_date, &child.Head_portrait)
 	return
 }
 
-type Child struct {
-	Child_id      int64     `json:"child_id" form:"child_id"`
-	Name          string    `json:"name" form:"name"`
-	Gender        int       `json:"gender" form:"gender"`
-	Birth_date    time.Time `json:"birth_date" form:"birth_date"`
-	Head_portrait string    `json:"head_portrait" form:"head_portrait"`
-	Relation      int       `json:"relation" form:"relation" xorm:"-"`
-	User_id       int       `json:"user_id" form:"user_id" xorm:"-"`
+// GetChildByUserId 通过用户ID获取儿童信息
+func GetChildByUserId(user_id int64) (childs []Child, err error) {
+	rows, err := db.SqlDB.Query("SELECT child.child_id,child.name,child.gender,child.birth_date,child.head_portrait FROM child, uc_relation WHERE uc_relation.user_id=? AND uc_relation.child_id = child.child_id", user_id)
+	if err == sql.ErrNoRows {
+		return childs, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var child Child
+		err = rows.Scan(&child.Child_id, &child.Name, &child.Gender, &child.Birth_date, &child.Head_portrait)
+		if err != nil {
+			return nil, err
+		}
+		childs = append(childs, child)
+	}
+
+	return childs, err
 }
 
-type Uc_relation struct {
-	Uc_relation_id int   `json:"uc_relation_id" form:"uc_relation_id"`
-	User_id        int   `json:"user_id" form:"user_id"`
-	Child_id       int64 `json:"child_id" form:"child_id"`
-	Relation       int   `json:"relation" form:"relation"`
+// AddChild 增加儿童信息
+func AddChild(child_id int64, name string, gender int, birth_date string, head_portrait string) (err error) {
+	_, err = db.SqlDB.Exec("INSERT INTO child(child_id, name, gender, birth_date, head_portrait) VALUES (?, ?, ?, ?, ?)", child_id, name, gender, birth_date, head_portrait)
+
+	return
 }
 
-// InsertChild 插入儿童信息及儿童用户关联表
-func InsertChild(user_id int, child_id int64, relation, Gender int, Head_portrait, Name string, Birth_date time.Time) (err error) {
-	session := db.Engine.NewSession()
-	defer session.Close()
-	// add Begin() before any action
-	err = session.Begin()
-	child := Child{Child_id: child_id, Name: Name, Gender: Gender, Birth_date: Birth_date, Head_portrait: Head_portrait}
-	_, err = session.Insert(&child)
-	if err != nil {
-		session.Rollback()
-		return
-	}
-	uc_relation := Uc_relation{User_id: user_id, Child_id: child_id, Relation: relation}
-	_, err = session.Insert(&uc_relation)
-	if err != nil {
-		session.Rollback()
-		return
-	}
-	// add Commit() after all actions
-	err = session.Commit()
-	if err != nil {
+// UpdateChild 更新儿童信息
+func UpdateChild(child_id int64, name string, gender int, birth_date string, head_portrait string) (err error) {
+	_, err = db.SqlDB.Exec("UPDATE child SET name=?,gender=?,birth_date=?,head_portrait=? WHERE child_id=?", name, gender, birth_date, head_portrait, child_id)
+
+	return
+}
+
+// GetUcRelation 获取用户儿童关联关系
+func GetUcRelation(user_id int64, child_id int64) (ucRelation Uc_relation, err error) {
+	ucRelation.User_id = user_id
+	ucRelation.Child_id = child_id
+
+	err = db.SqlDB.QueryRow("SELECT uc_relation_id,relation FROM uc_relation WHERE user_id=? AND child_id=?", user_id, child_id).Scan(&ucRelation.Uc_relation_id, &ucRelation.Relation)
+	return
+}
+
+// AddUcRelation 增加用户儿童关联关系
+func AddUcRelation(user_id int64, child_id int64, relation int) (err error) {
+	_, err = db.SqlDB.Exec("INSERT INTO uc_relation(user_id, child_id, relation) VALUES (?, ?, ?)", user_id, child_id, relation)
+
+	return
+}
+
+// UpdateUcRelation 更新用户儿童关联关系
+func UpdateUcRelation(user_id int64, child_id int64, relation int) (err error) {
+	_, err = db.SqlDB.Exec("UPDATE uc_relation SET relation=? WHERE user_id=? AND child_id=?", relation, user_id, child_id)
+
+	return
+}
+
+// QryCoupon 查询优惠码信息
+func QryCoupon(Secen_id int) (coupon *Coupon, err error) {
+	value, ok := g_mapCoupons[Secen_id]
+	if ok == true {
+		coupon = &value
+		err = nil
 		return
 	}
 
+	return coupon, errors.New("无效的参数")
+}
+
+// QryUserCoupon 查询用户优惠码信息
+func QryUserCoupon(user_id int64, code string) (userCoupon UserCoupon, err error) {
+	err = db.SqlDB.QueryRow("SELECT user_coupon_id,ava_count,discount,expiry_date from user_coupon WHERE user_id=? AND code=?", user_id, code).Scan(&userCoupon.User_coupon_id, &userCoupon.Ava_count, &userCoupon.Discount, &userCoupon.Expiry_date)
+	if err != nil {
+		return userCoupon, err
+	}
+	userCoupon.User_id = user_id
+	userCoupon.Code = code
+
+	return userCoupon, err
+}
+
+// UseUserCoupon 使用单个用户优惠码
+func UseUserCoupon(User_id int64, Code string) (err error) {
+	var open_id string
+	err = db.SqlDB.QueryRow("SELECT openid from user WHERE user_id=?", User_id).Scan(&open_id)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.SqlDB.Exec("UPDATE user_coupon SET ava_count=ava_count-1 WHERE openid=? AND code=?", open_id, Code)
 	return err
 }
 
-// Getchild 查询儿童信息
-func (uc *Uc_relation) Getchild() (child []Child, err error) {
-	err = db.Engine.Join("left", "uc_relation", "uc_relation.child_id=child.child_id").Where("uc_relation.user_id=?", uc.User_id).Find(&child)
-	return child, err
+// AddUserCoupon 添加用户优惠信息
+func AddUserCoupon(user_id int64, secen_id int, code string, ava_count int, discount string, expiry_date time.Time) (userCoupon UserCoupon, err error) {
+	var user_coupon_id int64
+	err = db.SqlDB.QueryRow("SELECT user_coupon_id from user_coupon WHERE user_id=? AND secen_id=?", user_id, secen_id).Scan(&user_coupon_id)
+	if err == nil {
+		return userCoupon, errors.New("用户已存在改场景下的优惠码")
+	}
+
+	if err != sql.ErrNoRows {
+		return userCoupon, err
+	}
+
+	rs, err := db.SqlDB.Exec("INSERT INTO user_coupon(user_id, secen_id, code, ava_count, discount, expiry_date) VALUES (?, ?, ?, ?, ?, ?)", user_id, secen_id, code, ava_count, discount, expiry_date)
+	if err == nil {
+		userCoupon.User_coupon_id, err = rs.LastInsertId()
+		userCoupon.User_id = user_id
+		userCoupon.Code = code
+		userCoupon.Ava_count = ava_count
+		userCoupon.Discount = discount
+		userCoupon.Expiry_date = expiry_date
+	}
+
+	return userCoupon, err
 }
 
-// Getchild 查询儿童信息
-func GetChildById(child_id int) (child Child, err error) {
-	_, err = db.Engine.Where("child_id=?", child_id).Get(&child)
-	return child, err
-}
-
-// UpChild 更新儿童信息
-func (child *Child) UpChild() (id int64, err error) {
-	session := db.Engine.NewSession()
-	defer session.Close()
-	// add Begin() before any action
-	err = session.Begin()
-
-	_, err = session.Cols("name", "gender", "birth_date", "head_portrait").Update(child, &Child{Child_id: child.Child_id})
-	if err != nil {
-		session.Rollback()
-		return 0, err
+func GenCouponCode() (code string) {
+	str := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	bytes := []byte(str)
+	result := []byte{}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 8; i++ {
+		result = append(result, bytes[r.Intn(len(bytes))])
 	}
-
-	uc_relation := Uc_relation{Relation: child.Relation}
-	_, err = session.Cols("relation").Update(uc_relation, &Uc_relation{Child_id: child.Child_id, User_id: child.User_id})
-	if err != nil {
-		session.Rollback()
-		return 0, err
-	}
-
-	err = session.Commit()
-	if err != nil {
-		return 0, err
-	}
-	return
-}
-
-// UpdateUser 更新个人中心信息
-func (u *User) UpdateUser() (id int64, err error) {
-	rs, err := db.SqlDB.Exec("update user set name=?,gender=?,birth_date=?,nick_name=? where user_id=?", u.Name, u.Gender, u.Birth_date, u.Nick_name, u.User_id)
-	if err != nil {
-		return
-	}
-	id, err = rs.LastInsertId()
-	return
-}
-
-// QryUser 获取个人中心信息
-func QryUser(User_id int) (user User, err error) {
-	bl, err := db.Engine.Where("User_id=?", User_id).Get(&user)
-	if !bl {
-		return user, err
-	}
-	return user, err
-}
-
-// QryRelation 获取relation
-func QryRelation(User_id, Child_id int) (uc Uc_relation, err error) {
-	_, err = db.Engine.Where("user_id=? and child_id=?", User_id, Child_id).Get(&uc)
-	return uc, err
-}
-
-// QrySingleChild 查询单个儿童信息
-func QrySingleChild(Child_id, User_id int) (child Child, err error) {
-	rows, err := db.SqlDB.Query("SELECT child.birth_date,child.child_id,child.gender,child.head_portrait,child.name,uc_relation.user_id,uc_relation.relation from child LEFT JOIN uc_relation on uc_relation.child_id=child.child_id	where child.child_id=? and uc_relation.user_id=?", Child_id, User_id)
-	if err != nil {
-		return child, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		err = rows.Scan(&child.Birth_date, &child.Child_id, &child.Gender, &child.Head_portrait, &child.Name, &child.User_id, &child.Relation)
-		if err != nil {
-			return child, err
-		}
-	}
-	return child, err
+	return string(result)
 }

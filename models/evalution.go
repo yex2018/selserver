@@ -8,7 +8,7 @@ import (
 )
 
 type Evaluation struct {
-	Evaluation_id int        `json:"evaluation_id"`
+	Evaluation_id int64      `json:"evaluation_id"`
 	Name          string     `json:"name"`
 	Category      string     `json:"category"`
 	Abstract      string     `json:"abstract"`
@@ -24,16 +24,16 @@ type Evaluation struct {
 }
 
 type Question struct {
-	Question_id    int    `json:"question_id"`
+	Question_id    int64  `json:"question_id"`
 	Question_index int    `json:"question_index"`
 	Content        string `json:"content"`
 }
 
 type UserEvaluation struct {
-	User_evaluation_id  int       `json:"user_evaluation_id"`
-	Evaluation_id       int       `json:"evaluation_id"`
-	User_id             int       `json:"user_id"`
-	Child_id            int       `json:"child_id"`
+	User_evaluation_id  int64     `json:"user_evaluation_id"`
+	Evaluation_id       int64     `json:"evaluation_id"`
+	User_id             int64     `json:"user_id"`
+	Child_id            int64     `json:"child_id"`
 	Evaluation_time     time.Time `json:"evaluation_time"`
 	Current_question_id int       `json:"current_question_id"`
 	Data_result         string    `json:"data_result"`
@@ -41,9 +41,9 @@ type UserEvaluation struct {
 }
 
 type UserQuestion struct {
-	User_question_id   int    `json:"user_question_id"`
-	User_evaluation_id int    `json:"user_evaluation_id"`
-	Question_id        int    `json:"question_id"`
+	User_question_id   int64  `json:"user_question_id"`
+	User_evaluation_id int64  `json:"user_evaluation_id"`
+	Question_id        int64  `json:"question_id"`
 	Answer             string `json:"answer"`
 }
 
@@ -93,7 +93,7 @@ func GetEvaluations() (evaluations []Evaluation) {
 }
 
 // QryEvaluationById 获取单个测评
-func QryEvaluationById(evaluation_id int) (result *Evaluation, err error) {
+func QryEvaluationById(evaluation_id int64) (result *Evaluation, err error) {
 	for i, _ := range g_Evaluations {
 		if g_Evaluations[i].Evaluation_id == evaluation_id {
 			result = &g_Evaluations[i]
@@ -106,7 +106,7 @@ func QryEvaluationById(evaluation_id int) (result *Evaluation, err error) {
 }
 
 // UpdatePersonCountForEvaluation 更新测评已测人数
-func UpdatePersonCountForEvaluation(evaluation_id int) (err error) {
+func UpdatePersonCountForEvaluation(evaluation_id int64) (err error) {
 	value, err := QryEvaluationById(evaluation_id)
 	if err == nil {
 		personCount := value.Person_count + 1
@@ -124,7 +124,7 @@ func UpdatePersonCountForEvaluation(evaluation_id int) (err error) {
 }
 
 // AddUserEvaluation 增加用户测评
-func AddUserEvaluation(evaluation_id int, user_id int, child_id int, evaluation_time time.Time, current_question_id int) (id int64, err error) {
+func AddUserEvaluation(evaluation_id int64, user_id int64, child_id int64, evaluation_time time.Time, current_question_id int) (id int64, err error) {
 	rs, err := db.SqlDB.Exec("INSERT INTO user_evaluation(evaluation_id,user_id,child_id,evaluation_time,current_question_id) VALUES (?, ?, ?, ?, ?)", evaluation_id, user_id, child_id, evaluation_time, current_question_id)
 	if err != nil {
 		return 0, err
@@ -134,7 +134,7 @@ func AddUserEvaluation(evaluation_id int, user_id int, child_id int, evaluation_
 }
 
 // QryEvaluationById 根据ID获取单个用户测评
-func QryUserEvaluationById(user_evaluation_id int) (result UserEvaluation, err error) {
+func QryUserEvaluationById(user_evaluation_id int64) (result UserEvaluation, err error) {
 	result.User_evaluation_id = user_evaluation_id
 
 	err = db.SqlDB.QueryRow("SELECT evaluation_id,user_id,child_id,evaluation_time,current_question_id,IFNULL(data_result,''),IFNULL(report_result,'') FROM user_evaluation WHERE user_evaluation_id=?", user_evaluation_id).Scan(&result.Evaluation_id, &result.User_id, &result.Child_id, &result.Evaluation_time, &result.Current_question_id, &result.Data_result, &result.Report_result)
@@ -142,7 +142,7 @@ func QryUserEvaluationById(user_evaluation_id int) (result UserEvaluation, err e
 }
 
 // QryUserEvaluationByUserId 根据用户ID获取用户测评
-func QryUserEvaluationByUserId(user_id int) (userevaluations []UserEvaluation, err error) {
+func QryUserEvaluationByUserId(user_id int64) (userevaluations []UserEvaluation, err error) {
 	rows, err := db.SqlDB.Query("SELECT user_evaluation_id,evaluation_id,child_id,evaluation_time,current_question_id,IFNULL(data_result,''),IFNULL(report_result,'') FROM user_evaluation WHERE user_id=? ORDER BY evaluation_time DESC", user_id)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func QryUserEvaluationByUserId(user_id int) (userevaluations []UserEvaluation, e
 }
 
 // QryUserEvaluationByChildId 根据儿童ID获取用户测评
-func QryUserEvaluationByChildId(child_id int) (userevaluations []UserEvaluation, err error) {
+func QryUserEvaluationByChildId(child_id int64) (userevaluations []UserEvaluation, err error) {
 	rows, err := db.SqlDB.Query("SELECT user_evaluation_id,evaluation_id,user_id,evaluation_time,current_question_id,IFNULL(data_result,''),IFNULL(report_result,'') FROM user_evaluation WHERE child_id=? AND current_question_id=-1 ORDER BY evaluation_time DESC", child_id)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func QryUserEvaluationByChildId(child_id int) (userevaluations []UserEvaluation,
 }
 
 // QryUserQuestion 获取用户测评题目
-func QryUserQuestion(user_evaluation_id int, question_id int) (result UserQuestion, err error) {
+func QryUserQuestion(user_evaluation_id int64, question_id int64) (result UserQuestion, err error) {
 	result.User_question_id = 0
 	result.User_evaluation_id = user_evaluation_id
 	result.Question_id = question_id
@@ -194,7 +194,7 @@ func QryUserQuestion(user_evaluation_id int, question_id int) (result UserQuesti
 }
 
 // UpdateUserQuestion 更新用户测评题目
-func UpdateUserQuestion(user_evaluation_id int, user_question_id int, question_id int, question_index int, answer string) (err error) {
+func UpdateUserQuestion(user_evaluation_id int64, user_question_id int64, question_id int64, question_index int, answer string) (err error) {
 	var current_question_id int
 
 	err = db.SqlDB.QueryRow("SELECT current_question_id FROM user_evaluation WHERE user_evaluation_id=?", user_evaluation_id).Scan(&current_question_id)
@@ -225,7 +225,7 @@ func UpdateUserQuestion(user_evaluation_id int, user_question_id int, question_i
 }
 
 // UpdateCurrentQuestionIdForUserEvaluation 更新用户测评的current_question_id
-func UpdateCurrentQuestionIdForUserEvaluation(user_evaluation_id int, current_question_id int) (err error) {
+func UpdateCurrentQuestionIdForUserEvaluation(user_evaluation_id int64, current_question_id int) (err error) {
 	_, err = db.SqlDB.Exec("UPDATE user_evaluation SET current_question_id=? WHERE user_evaluation_id=?", current_question_id, user_evaluation_id)
 	return
 }

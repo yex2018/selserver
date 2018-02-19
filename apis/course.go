@@ -48,7 +48,7 @@ func QryCourse(c *gin.Context) {
 // GetCourseByID 根据id获取课程信息
 func GetCourseByID(c *gin.Context) {
 	type param struct {
-		Course_id int `form:"course_id" binding:"required"` //测评ID
+		Course_id int64 `form:"course_id" binding:"required"` //测评ID
 	}
 
 	var queryStr param
@@ -79,7 +79,7 @@ func GetCourseByID(c *gin.Context) {
 // GetResource 获取课程资源
 func GetCourseResource(c *gin.Context) {
 	type param struct {
-		Course_id int `form:"course_id" binding:"required"` //测评ID
+		Course_id int64 `form:"course_id" binding:"required"` //测评ID
 	}
 
 	var queryStr param
@@ -111,8 +111,8 @@ func GetCourseResource(c *gin.Context) {
 // AddUserCourse 增加用户课程
 func AddUserCourse(c *gin.Context) {
 	type param struct {
-		Course_id int `form:"course_id" binding:"required"` //关联课程ID
-		User_id   int `form:"user_id" binding:"required"`   //关联用户ID
+		Course_id int64 `form:"course_id" binding:"required"` //关联课程ID
+		User_id   int64 `form:"user_id" binding:"required"`   //关联用户ID
 	}
 
 	var postStr param
@@ -139,8 +139,8 @@ func AddUserCourse(c *gin.Context) {
 // QryUserCourse 查看用户单个课程
 func QryUserCourse(c *gin.Context) {
 	type param struct {
-		Course_id int `form:"course_id" binding:"required"` //课程ID
-		User_id   int `form:"user_id" binding:"required"`   //用户ID
+		Course_id int64 `form:"course_id" binding:"required"` //课程ID
+		User_id   int64 `form:"user_id" binding:"required"`   //用户ID
 	}
 
 	var queryStr param
@@ -161,7 +161,7 @@ func QryUserCourse(c *gin.Context) {
 // QryMyCourse 获取本人课程列表
 func QryMyCourse(c *gin.Context) {
 	type param struct {
-		User_id int `form:"user_id" binding:"required"` //用户ID
+		User_id int64 `form:"user_id" binding:"required"` //用户ID
 	}
 
 	var queryStr param

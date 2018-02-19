@@ -53,7 +53,7 @@ func QryEvaluation(c *gin.Context) {
 // QrySingleEvaluation 获取单个测评
 func QrySingleEvaluation(c *gin.Context) {
 	type param struct {
-		Evaluation_id int `form:"evaluation_id" binding:"required"` //测评ID
+		Evaluation_id int64 `form:"evaluation_id" binding:"required"` //测评ID
 	}
 
 	var queryStr param
@@ -89,9 +89,9 @@ func QrySingleEvaluation(c *gin.Context) {
 // AddUserEvaluation 增加用户测评
 func AddUserEvaluation(c *gin.Context) {
 	type param struct {
-		Evaluation_id int `json:"evaluation_id" binding:"required"` //测评ID
-		User_id       int `json:"user_id" binding:"required"`       //用户ID
-		Child_id      int `json:"child_id" binding:"required"`      //儿童ID
+		Evaluation_id int64 `json:"evaluation_id" binding:"required"` //测评ID
+		User_id       int64 `json:"user_id" binding:"required"`       //用户ID
+		Child_id      int64 `json:"child_id" binding:"required"`      //儿童ID
 	}
 
 	var postStr param
@@ -114,9 +114,9 @@ func AddUserEvaluation(c *gin.Context) {
 // QryUserQuestion 获取用户测评题目
 func QryUserQuestion(c *gin.Context) {
 	type param struct {
-		User_evaluation_id int `form:"user_evaluation_id" binding:"required"` //用户测评ID
-		Evaluation_id      int `form:"evaluation_id" binding:"required"`      //测评ID
-		Question_index     int `form:"question_index" binding:"required"`     //题目号
+		User_evaluation_id int64 `form:"user_evaluation_id" binding:"required"` //用户测评ID
+		Evaluation_id      int64 `form:"evaluation_id" binding:"required"`      //测评ID
+		Question_index     int   `form:"question_index" binding:"required"`     //题目号
 	}
 
 	var queryStr param
@@ -152,10 +152,10 @@ func QryUserQuestion(c *gin.Context) {
 // UpdateUserQuestion 更新用户测评题目
 func UpdateUserQuestion(c *gin.Context) {
 	type param struct {
-		User_evaluation_id int    `form:"user_evaluation_id" binding:"required"` //用户测评ID
-		User_question_id   int    `form:"user_question_id"`                      //用户题目ID
-		Evaluation_id      int    `form:"evaluation_id" binding:"required"`      //测评ID
-		Question_id        int    `form:"question_id" binding:"required"`        //题目ID
+		User_evaluation_id int64  `form:"user_evaluation_id" binding:"required"` //用户测评ID
+		User_question_id   int64  `form:"user_question_id"`                      //用户题目ID
+		Evaluation_id      int64  `form:"evaluation_id" binding:"required"`      //测评ID
+		Question_id        int64  `form:"question_id" binding:"required"`        //题目ID
 		Question_Index     int    `form:"question_index" binding:"required"`     //题目序号
 		Answer             string `form:"answer" binding:"required"`             //答案
 	}
@@ -191,7 +191,7 @@ func UpdateUserQuestion(c *gin.Context) {
 // QryReport 生成报告
 func QryReport(c *gin.Context) {
 	type param struct {
-		User_evaluation_id int    `form:"user_evaluation_id"` //用户测评ID
+		User_evaluation_id int64  `form:"user_evaluation_id"` //用户测评ID
 		TypeId             string `form:"typeid"`             //查看报告1；生成报告0
 	}
 
@@ -214,7 +214,7 @@ func QryReport(c *gin.Context) {
 	}
 
 	if len(userevaluation.Report_result) <= 0 && queryStr.TypeId == "0" {
-		ueIdString := strconv.Itoa(userevaluation.User_evaluation_id)
+		ueIdString := strconv.FormatInt(userevaluation.User_evaluation_id, 10)
 		reportFileName := evaluation.Key_name + "_" + ueIdString + "_" + time.Now().Format("20060102150405") + ".pdf"
 
 		if runPrint("selreport", ueIdString+","+reportFileName) {
@@ -251,7 +251,7 @@ func QryReport(c *gin.Context) {
 // SendReport 发送报告
 func SendReport(c *gin.Context) {
 	type param struct {
-		User_evaluation_id int    `form:"user_evaluation_id" binding:"required"` //用户测评ID
+		User_evaluation_id int64  `form:"user_evaluation_id" binding:"required"` //用户测评ID
 		OpenId             string `form:"openid" binding:"required"`             //用户openid
 	}
 	var queryStr param
@@ -272,7 +272,7 @@ func SendReport(c *gin.Context) {
 		return
 	}
 
-	user, err := models.GetUserByOpenid(queryStr.OpenId)
+	user, err := models.GetUserByOpenId(queryStr.OpenId)
 	if err != nil {
 		c.Error(err)
 		return
@@ -297,7 +297,7 @@ func SendReport(c *gin.Context) {
 // QryMyEvaluation 查询本人测评
 func QryMyEvaluation(c *gin.Context) {
 	type param struct {
-		User_id int `form:"user_id" binding:"required"` //用户ID
+		User_id int64 `form:"user_id" binding:"required"` //用户ID
 	}
 
 	var queryStr param
@@ -340,7 +340,7 @@ func QryMyEvaluation(c *gin.Context) {
 // QryEvaluationByChildId 查询所属儿童测评列表
 func QryEvaluationByChildId(c *gin.Context) {
 	type param struct {
-		Child_id int `form:"child_id" binding:"required"`
+		Child_id int64 `form:"child_id" binding:"required"`
 	}
 
 	var queryStr param
