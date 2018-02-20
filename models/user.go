@@ -24,11 +24,10 @@ type User struct {
 }
 
 type Child struct {
-	Child_id      int64     `json:"child_id" form:"child_id"`
-	Name          string    `json:"name" form:"name"`
-	Gender        int       `json:"gender" form:"gender"`
-	Birth_date    time.Time `json:"birth_date" form:"birth_date"`
-	Head_portrait string    `json:"head_portrait" form:"head_portrait"`
+	Child_id   int64     `json:"child_id" form:"child_id"`
+	Name       string    `json:"name" form:"name"`
+	Gender     int       `json:"gender" form:"gender"`
+	Birth_date time.Time `json:"birth_date" form:"birth_date"`
 }
 
 type Uc_relation struct {
@@ -138,13 +137,13 @@ func UpdateUser(user_id int64, nick_name string, gender int, name string, birth_
 func GetChildById(child_id int64) (child Child, err error) {
 	child.Child_id = child_id
 
-	err = db.SqlDB.QueryRow("SELECT name,gender,birth_date,head_portrait FROM child WHERE child_id=?", child_id).Scan(&child.Name, &child.Gender, &child.Birth_date, &child.Head_portrait)
+	err = db.SqlDB.QueryRow("SELECT name,gender,birth_date FROM child WHERE child_id=?", child_id).Scan(&child.Name, &child.Gender, &child.Birth_date)
 	return
 }
 
 // GetChildByUserId 通过用户ID获取儿童信息
 func GetChildByUserId(user_id int64) (childs []Child, err error) {
-	rows, err := db.SqlDB.Query("SELECT child.child_id,child.name,child.gender,child.birth_date,child.head_portrait FROM child, uc_relation WHERE uc_relation.user_id=? AND uc_relation.child_id = child.child_id", user_id)
+	rows, err := db.SqlDB.Query("SELECT child.child_id,child.name,child.gender,child.birth_date FROM child, uc_relation WHERE uc_relation.user_id=? AND uc_relation.child_id = child.child_id", user_id)
 	if err == sql.ErrNoRows {
 		return childs, nil
 	} else if err != nil {
@@ -154,7 +153,7 @@ func GetChildByUserId(user_id int64) (childs []Child, err error) {
 
 	for rows.Next() {
 		var child Child
-		err = rows.Scan(&child.Child_id, &child.Name, &child.Gender, &child.Birth_date, &child.Head_portrait)
+		err = rows.Scan(&child.Child_id, &child.Name, &child.Gender, &child.Birth_date)
 		if err != nil {
 			return nil, err
 		}
@@ -165,15 +164,15 @@ func GetChildByUserId(user_id int64) (childs []Child, err error) {
 }
 
 // AddChild 增加儿童信息
-func AddChild(child_id int64, name string, gender int, birth_date string, head_portrait string) (err error) {
-	_, err = db.SqlDB.Exec("INSERT INTO child(child_id, name, gender, birth_date, head_portrait) VALUES (?, ?, ?, ?, ?)", child_id, name, gender, birth_date, head_portrait)
+func AddChild(child_id int64, name string, gender int, birth_date string) (err error) {
+	_, err = db.SqlDB.Exec("INSERT INTO child(child_id, name, gender, birth_date) VALUES (?, ?, ?, ?)", child_id, name, gender, birth_date)
 
 	return
 }
 
 // UpdateChild 更新儿童信息
-func UpdateChild(child_id int64, name string, gender int, birth_date string, head_portrait string) (err error) {
-	_, err = db.SqlDB.Exec("UPDATE child SET name=?,gender=?,birth_date=?,head_portrait=? WHERE child_id=?", name, gender, birth_date, head_portrait, child_id)
+func UpdateChild(child_id int64, name string, gender int, birth_date string) (err error) {
+	_, err = db.SqlDB.Exec("UPDATE child SET name=?,gender=?,birth_date=? WHERE child_id=?", name, gender, birth_date, child_id)
 
 	return
 }

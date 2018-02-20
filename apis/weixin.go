@@ -2,7 +2,6 @@ package apis
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -24,7 +23,6 @@ import (
 
 	"gopkg.in/chanxuehong/wechat.v2/mp/core"
 	"gopkg.in/chanxuehong/wechat.v2/mp/jssdk"
-	"gopkg.in/chanxuehong/wechat.v2/mp/media"
 	"gopkg.in/chanxuehong/wechat.v2/mp/menu"
 	"gopkg.in/chanxuehong/wechat.v2/mp/message/callback/request"
 	"gopkg.in/chanxuehong/wechat.v2/mp/message/callback/response"
@@ -33,9 +31,9 @@ import (
 	mpoauth2 "gopkg.in/chanxuehong/wechat.v2/mp/oauth2"
 	"gopkg.in/chanxuehong/wechat.v2/mp/user"
 
-	"gopkg.in/chanxuehong/wechat.v2/oauth2"
 	"github.com/gin-gonic/gin"
 	"github.com/yex2018/selserver/conf"
+	"gopkg.in/chanxuehong/wechat.v2/oauth2"
 )
 
 var (
@@ -335,42 +333,9 @@ func Page2Handler(c *gin.Context) {
 	return
 }
 
-// DownloadMedia 通过mediaid下载媒体文件
-func DownloadMedia(c *gin.Context) {
-	mediaID := c.Query("mediaid")
-	if mediaID == "" {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-	fileName := getFileName(mediaID)
-	if checkFileIsExist(fileName) {
-		c.JSON(http.StatusOK, models.Result{Data: "/front/childimg/" + mediaID + ".jpg"})
-		return
-	}
-	myfile, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-	_, err = media.DownloadToWriter(wechatClient, mediaID, myfile)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-	c.JSON(http.StatusOK, models.Result{Data: "/front/childimg/" + mediaID + ".jpg"})
-}
-
 func getFileName(mediaID string) string {
 	pwd, _ := os.Getwd()
 	return filepath.Join(pwd, "front", "childimg", mediaID+".jpg")
-}
-
-func checkFileIsExist(filename string) bool {
-	var exist = true
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		exist = false
-	}
-	return exist
 }
 
 // TemplateMessage 发送模板消息

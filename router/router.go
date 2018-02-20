@@ -76,8 +76,6 @@ func InitRouter() *gin.Engine {
 
 	//获取视频播放地址
 	router.GET("/GetVideoPlayAuth", apis.GetVideo)
-	//上传儿童头像
-	router.GET("/UploadChildImg", apis.DownloadMedia)
 
 	//生成支付订单
 	router.GET("/wxPayOrder", apis.WxPayOrder)

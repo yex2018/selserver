@@ -105,13 +105,12 @@ func QryUserChild(c *gin.Context) {
 // UpdateUserChild 更新用户儿童信息
 func UpdateUserChild(c *gin.Context) {
 	type param struct {
-		User_id       int64  `form:"user_id" binding:"required"`
-		Child_id      int64  `form:"child_id"`
-		Gender        int    `form:"gender" binding:"required"`
-		Name          string `form:"name" binding:"required"`
-		Birth_date    string `form:"birth_date" binding:"required"`
-		Head_portrait string `form:"head_portrait"`
-		Relation      int    `form:"relation" binding:"required"`
+		User_id    int64  `form:"user_id" binding:"required"`
+		Child_id   int64  `form:"child_id"`
+		Gender     int    `form:"gender" binding:"required"`
+		Name       string `form:"name" binding:"required"`
+		Birth_date string `form:"birth_date" binding:"required"`
+		Relation   int    `form:"relation" binding:"required"`
 	}
 
 	var queryStr param
@@ -121,7 +120,7 @@ func UpdateUserChild(c *gin.Context) {
 	}
 
 	if queryStr.Child_id != 0 {
-		err := models.UpdateChild(queryStr.Child_id, queryStr.Name, queryStr.Gender, queryStr.Birth_date, queryStr.Head_portrait)
+		err := models.UpdateChild(queryStr.Child_id, queryStr.Name, queryStr.Gender, queryStr.Birth_date)
 		if err != nil {
 			c.Error(err)
 			return
@@ -135,7 +134,7 @@ func UpdateUserChild(c *gin.Context) {
 	} else {
 		queryStr.Child_id = time.Now().Unix()
 
-		err := models.AddChild(queryStr.Child_id, queryStr.Name, queryStr.Gender, queryStr.Birth_date, queryStr.Head_portrait)
+		err := models.AddChild(queryStr.Child_id, queryStr.Name, queryStr.Gender, queryStr.Birth_date)
 		if err != nil {
 			c.Error(err)
 			return
@@ -181,7 +180,6 @@ func QrySingleChild(c *gin.Context) {
 	mapData["name"] = child.Name
 	mapData["gender"] = child.Gender
 	mapData["birth_date"] = child.Birth_date
-	mapData["head_portrait"] = child.Head_portrait
 	mapData["relation"] = ucRelation.Relation
 
 	c.JSON(http.StatusOK, models.Result{Data: &mapData})
