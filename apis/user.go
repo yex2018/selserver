@@ -212,25 +212,3 @@ func QryUserCoupon(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.Result{Res: 0, Msg: "", Data: userCoupon.Discount})
 }
-
-// UseUserCoupon 使用用户优惠码
-func UseUserCoupon(c *gin.Context) {
-	type param struct {
-		User_id     int64  `form:"user_id" binding:"required"`
-		Coupon_code string `form:"coupon_code" binding:"required"`
-	}
-
-	var queryStr param
-	if c.ShouldBindWith(&queryStr, binding.Query) != nil {
-		c.Error(errors.New("参数为空"))
-		return
-	}
-
-	err := models.UseUserCoupon(queryStr.User_id, queryStr.Coupon_code)
-	if err != nil {
-		c.JSON(http.StatusOK, models.Result{Res: 0, Msg: "优惠码使用失败", Data: nil})
-		return
-	}
-
-	c.JSON(http.StatusOK, models.Result{Res: 0, Msg: "优惠码使用成功", Data: nil})
-}

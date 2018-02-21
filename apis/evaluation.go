@@ -89,9 +89,10 @@ func QrySingleEvaluation(c *gin.Context) {
 // AddUserEvaluation 增加用户测评
 func AddUserEvaluation(c *gin.Context) {
 	type param struct {
-		Evaluation_id int64 `json:"evaluation_id" binding:"required"` //测评ID
-		User_id       int64 `json:"user_id" binding:"required"`       //用户ID
-		Child_id      int64 `json:"child_id" binding:"required"`      //儿童ID
+		Evaluation_id int64  `json:"evaluation_id" binding:"required"` //测评ID
+		User_id       int64  `json:"user_id" binding:"required"`       //用户ID
+		Child_id      int64  `json:"child_id" binding:"required"`      //儿童ID
+		Coupon_code   string `form:"coupon_code"`                      //优惠码
 	}
 
 	var postStr param
@@ -104,6 +105,10 @@ func AddUserEvaluation(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusOK, models.Result{Res: 1, Msg: "增加用户测评失败" + err.Error(), Data: nil})
 		return
+	}
+
+	if postStr.Coupon_code != "" {
+		_ = models.UseUserCoupon(postStr.User_id, postStr.Coupon_code)
 	}
 
 	mapData := make(map[string]int64)

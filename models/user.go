@@ -225,14 +225,8 @@ func QryUserCoupon(user_id int64, code string) (userCoupon UserCoupon, err error
 }
 
 // UseUserCoupon 使用单个用户优惠码
-func UseUserCoupon(User_id int64, Code string) (err error) {
-	var open_id string
-	err = db.SqlDB.QueryRow("SELECT openid from user WHERE user_id=?", User_id).Scan(&open_id)
-	if err != nil {
-		return err
-	}
-
-	_, err = db.SqlDB.Exec("UPDATE user_coupon SET ava_count=ava_count-1 WHERE openid=? AND code=?", open_id, Code)
+func UseUserCoupon(user_id int64, code string) (err error) {
+	_, err = db.SqlDB.Exec("UPDATE user_coupon SET ava_count=ava_count-1 WHERE user_id=? AND code=?", user_id, code)
 	return err
 }
 
