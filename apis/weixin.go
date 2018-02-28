@@ -7,14 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/yex2018/selserver/models"
-
 	"github.com/yex2018/selserver/tool"
 
 	"github.com/chanxuehong/rand"
@@ -331,11 +328,6 @@ func Page2Handler(c *gin.Context) {
 	}
 	http.Redirect(c.Writer, c.Request, AuthCodeURL, http.StatusFound)
 	return
-}
-
-func getFileName(mediaID string) string {
-	pwd, _ := os.Getwd()
-	return filepath.Join(pwd, "front", "childimg", mediaID+".jpg")
 }
 
 // TemplateMessage 发送模板消息
