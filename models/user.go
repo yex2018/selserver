@@ -120,7 +120,7 @@ func RefreshUser(openid string, unionid string, sceneid int, nick_name string, h
 		user.Gender = gender
 		user.Residence = residence
 
-		_, err = db.SqlDB.Exec("UPDATE user SET nick_name=?,head_portrait=?,gender=?,residence=? WHERE openid=?", nick_name, head_portrait, gender, residence, openid)
+		_, err = db.SqlDB.Exec("UPDATE user SET sceneid=?, nick_name=?,head_portrait=?,gender=?,residence=? WHERE openid=?", sceneid, nick_name, head_portrait, gender, residence, openid)
 	}
 
 	return

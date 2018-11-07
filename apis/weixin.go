@@ -56,7 +56,7 @@ func init() {
 	mux := core.NewServeMux()
 	mux.DefaultMsgHandleFunc(defaultMsgHandler)
 	mux.DefaultEventHandleFunc(defaultEventHandler)
-	mux.MsgHandleFunc(request.MsgTypeText, textMsgHandler)
+	//mux.MsgHandleFunc(request.MsgTypeText, textMsgHandler)
 	mux.EventHandleFunc(menu.EventTypeClick, menuClickEventHandler)
 	mux.EventHandleFunc(request.EventTypeSubscribe, subscribeEventHandler)
 	mux.EventHandleFunc(request.EventTypeScan, scanEventHandler)
@@ -69,7 +69,8 @@ func textMsgHandler(ctx *core.Context) {
 	log.Printf("收到文本消息:\n%s\n", ctx.MsgPlaintext)
 
 	msg := request.GetText(ctx.MixedMsg)
-	resp := response.NewText(msg.FromUserName, msg.ToUserName, msg.CreateTime, msg.Content)
+	//resp := response.NewText(msg.FromUserName, msg.ToUserName, msg.CreateTime, msg.Content)
+	resp := response.NewTransferToCustomerService(msg.FromUserName, msg.ToUserName, msg.CreateTime, "")
 	ctx.RawResponse(resp) // 明文回复
 }
 

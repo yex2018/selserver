@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"errors"
 	"time"
 
@@ -205,6 +206,13 @@ func UpdateUserQuestion(user_evaluation_id int64, user_question_id int64, questi
 	if current_question_id < question_index {
 		_, err = db.SqlDB.Exec("UPDATE user_evaluation SET current_question_id=? WHERE user_evaluation_id=?", question_index, user_evaluation_id)
 		if err != nil {
+			return err
+		}
+	}
+
+	if user_question_id <= 0 {
+		err = db.SqlDB.QueryRow("SELECT user_question_id FROM user_question WHERE user_evaluation_id=? AND question_id=?", user_evaluation_id, question_id).Scan(&user_question_id)
+		if err != nil && err != sql.ErrNoRows {
 			return err
 		}
 	}
